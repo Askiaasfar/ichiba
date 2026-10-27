@@ -1,0 +1,6 @@
+{
+  "name": "Nkem Marketplace - Dual Verified Shops & Classifieds",
+  "description": "Multi-tier Nigerian commerce platform enabling verified merchants with trust badges and commission/fee sales, alongside subscription-based classified advertisements with mandatory buyer caution warnings and featured listings.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
