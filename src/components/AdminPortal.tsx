@@ -236,10 +236,12 @@ export const AdminPortal: React.FC = () => {
     if (!newStaffName || !newStaffEmail) return;
 
     const permissionsMap: Record<AdminRole, string[]> = {
-      super_admin: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings'],
-      verification_officer: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers'],
-      moderation_admin: ['approve_ads', 'reject_ads', 'flag_content', 'ban_advertisers'],
-      finance_admin: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders']
+      super_admin: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings', 'system_security'],
+      coo: ['operations_oversight', 'approve_shops', 'approve_ads', 'escalations', 'audit_sellers', 'view_reports'],
+      finance_admin: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders', 'view_financial_analytics'],
+      growth_manager: ['approve_ads', 'flag_content', 'campaign_management', 'analytics', 'feature_promotions'],
+      verification_officer: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers', 'kyc_document_review'],
+      moderation_admin: ['approve_ads', 'reject_ads', 'flag_content', 'ban_advertisers']
     };
 
     addAdminStaff({
@@ -280,6 +282,15 @@ export const AdminPortal: React.FC = () => {
             <p className="text-xs text-slate-400 font-light">
               Authenticated Administrator: <strong className="text-slate-200">{currentUser.name}</strong> ({currentUser.email}). Manage verified merchant storefronts, moderate classified listings, release escrow payouts, and govern administrative staff.
             </p>
+            <div className="flex items-center gap-2 pt-1">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-md bg-emerald-950/80 text-emerald-400 border border-emerald-800 text-[10px] font-mono font-medium">
+                <ShieldCheck className="w-3 h-3 text-emerald-400" />
+                <span>Google OAuth · Verified Super Admin</span>
+              </span>
+              <span className="text-[11px] text-slate-400">
+                Authorized Founder: <strong className="text-[#D4AF37] font-mono">askiasventures@gmail.com</strong>
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
@@ -1175,11 +1186,15 @@ export const AdminPortal: React.FC = () => {
                       </div>
                       <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                         staff.role === 'super_admin'
+                          ? 'bg-[#D4AF37]/20 text-[#000000] border border-[#D4AF37]'
+                          : staff.role === 'coo'
                           ? 'bg-purple-100 text-purple-900 border border-purple-200'
-                          : staff.role === 'verification_officer'
-                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                           : staff.role === 'finance_admin'
                           ? 'bg-blue-100 text-blue-900 border border-blue-200'
+                          : staff.role === 'growth_manager'
+                          ? 'bg-pink-100 text-pink-900 border border-pink-200'
+                          : staff.role === 'verification_officer'
+                          ? 'bg-emerald-100 text-emerald-900 border border-emerald-200'
                           : 'bg-amber-100 text-amber-900 border border-amber-200'
                       }`}>
                         {staff.role.replace('_', ' ')}
@@ -1393,10 +1408,11 @@ export const AdminPortal: React.FC = () => {
                   onChange={(e) => setNewStaffRole(e.target.value as AdminRole)}
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-indigo-500"
                 >
-                  <option value="verification_officer">Verification Officer (Reviews CAC & Seller Badges)</option>
-                  <option value="moderation_admin">Ad Moderation Admin (Reviews Classified Ads)</option>
-                  <option value="finance_admin">Finance & Payouts Admin (Releases Escrow Payouts)</option>
-                  <option value="super_admin">Super Administrator (Full System Control)</option>
+                  <option value="coo">Chief Operating Officer (COO - Operations & Escalations)</option>
+                  <option value="finance_admin">Finance & Payments Manager (Reconciles & Releases Escrow)</option>
+                  <option value="growth_manager">Marketing & Growth Manager (Campaigns & Featured Ads)</option>
+                  <option value="verification_officer">Seller Verification & Compliance Officer (Reviews CAC)</option>
+                  <option value="moderation_admin">Content Moderation Admin (Reviews Classified Ads)</option>
                 </select>
               </div>
 

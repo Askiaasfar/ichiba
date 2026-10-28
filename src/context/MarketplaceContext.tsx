@@ -44,6 +44,10 @@ interface MarketplaceContextType {
   adminStaff: AdminStaffMember[];
   shopStaff: ShopStaffMember[];
   isSuperAdmin: boolean;
+  serverAdminSession: { authenticated: boolean; email?: string; name?: string; role?: string; avatarUrl?: string } | null;
+  checkServerAdminSession: () => Promise<boolean>;
+  loginSuperAdminWithGoogle: (credential: string) => Promise<{ success: boolean; error?: string; unauthorizedEmail?: string }>;
+  syncServerAdminSession: (user: { email: string; name: string; role: string; avatarUrl?: string }) => void;
   loginAsUser: (userId: string) => void;
   loginSuperAdmin: (email: string, password: string) => { success: boolean; error?: string };
   registerUser: (data: {
@@ -144,6 +148,15 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const currentUser = users.find((u) => u.id === currentUserId) || users.find((u) => u.accountType === 'buyer') || users[0];
   const isSuperAdmin = (currentUser?.email?.toLowerCase() === 'askiasventures@gmail.com' || currentUser?.email?.toLowerCase() === 'askiabusiness18@gmail.com') && currentUser?.accountType === 'admin';
+
+  // Verified server-side Super Admin session from HTTP-only cookie
+  const [serverAdminSession, setServerAdminSession] = useState<{
+    authenticated: boolean;
+    email?: string;
+    name?: string;
+    role?: string;
+    avatarUrl?: string;
+  } | null>(null);
 
   // Admin staff directory
   const [adminStaff, setAdminStaff] = useState<AdminStaffMember[]>(() => {
@@ -300,7 +313,103 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentRole(u.accountType as UserRole);
   };
 
-  // Secure Super Admin Authentication
+  // Check verified server session on boot
+  useEffect(() => {
+    checkServerAdminSession();
+  }, []);
+
+  const checkServerAdminSession = async (): Promise<boolean> => {
+    try {
+      const res = await fetch('/api/admin/session', { credentials: 'include' });
+      if (!res.ok) return false;
+      const data = await res.json();
+      if (data.authenticated && data.user) {
+        setServerAdminSession({
+          authenticated: true,
+          email: data.user.email,
+          name: data.user.name,
+          role: data.user.role,
+          avatarUrl: data.user.avatarUrl
+        });
+        syncServerAdminSession(data.user);
+        return true;
+      } else {
+        setServerAdminSession({ authenticated: false });
+        return false;
+      }
+    } catch {
+      setServerAdminSession({ authenticated: false });
+      return false;
+    }
+  };
+
+  const syncServerAdminSession = (user: { email: string; name: string; role: string; avatarUrl?: string }) => {
+    const cleanEmail = user.email.toLowerCase();
+    let adminUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (!adminUser) {
+      adminUser = {
+        id: 'usr-super-admin-askia',
+        name: user.name || 'Askia Market Executive',
+        email: cleanEmail,
+        phone: '+234 800 000 0001',
+        accountType: 'admin',
+        adminRole: 'super_admin',
+        createdAt: '2026-01-01T00:00:00Z',
+        avatarUrl: user.avatarUrl
+      };
+      setUsers((prev) => [adminUser!, ...prev.filter((x) => x.email.toLowerCase() !== cleanEmail)]);
+    } else {
+      adminUser = {
+        ...adminUser,
+        name: user.name || adminUser.name,
+        accountType: 'admin',
+        adminRole: 'super_admin',
+        avatarUrl: user.avatarUrl || adminUser.avatarUrl
+      };
+      setUsers((prev) => [adminUser!, ...prev.filter((x) => x.id !== adminUser!.id)]);
+    }
+    setCurrentUserId(adminUser.id);
+    setCurrentRole('admin');
+  };
+
+  const loginSuperAdminWithGoogle = async (
+    credential: string
+  ): Promise<{ success: boolean; error?: string; unauthorizedEmail?: string }> => {
+    try {
+      const res = await fetch('/api/auth/google/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ credential })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.message || 'Access Denied: Google identity authorization failed.',
+          unauthorizedEmail: data.unauthorizedEmail
+        };
+      }
+
+      setServerAdminSession({
+        authenticated: true,
+        email: data.user.email,
+        name: data.user.name,
+        role: data.user.role,
+        avatarUrl: data.user.avatarUrl
+      });
+      syncServerAdminSession(data.user);
+      return { success: true };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: `Server connection error during Google authentication: ${err.message}`
+      };
+    }
+  };
+
+  // Secure Super Admin Authentication (Legacy / Fallback Credentials)
   const loginSuperAdmin = (email: string, password: string): { success: boolean; error?: string } => {
     const cleanEmail = email.trim().toLowerCase();
     const isAuthorized = cleanEmail === 'askiasventures@gmail.com' || cleanEmail === 'askiabusiness18@gmail.com';
@@ -340,6 +449,10 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const logout = () => {
+    // Invalidate server session cookie
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+    setServerAdminSession({ authenticated: false });
+
     // Switch to public buyer mode
     const existingBuyer = users.find((u) => u.accountType === 'buyer');
     if (existingBuyer) {
@@ -1129,6 +1242,10 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         adminStaff,
         shopStaff,
         isSuperAdmin,
+        serverAdminSession,
+        checkServerAdminSession,
+        loginSuperAdminWithGoogle,
+        syncServerAdminSession,
         loginAsUser,
         loginSuperAdmin,
         registerUser,

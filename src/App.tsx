@@ -72,6 +72,14 @@ const MainMarketplaceApp: React.FC = () => {
   } | null>(null);
   const [showPostChooser, setShowPostChooser] = useState(false);
 
+  // Sync URL search parameters for direct navigation or OAuth redirects
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('tab') === 'admin' || params.has('auth')) {
+      setCurrentRole('admin');
+    }
+  }, [setCurrentRole]);
+
   // Combine products and approved active advertisements into unified feed
   const combinedListings: ListingItem[] = useMemo(() => {
     const list: ListingItem[] = [];
@@ -220,7 +228,7 @@ const MainMarketplaceApp: React.FC = () => {
         )}
 
         {/* If in Admin Role mode, display the Private Super Admin Console or the Secure Login Gate */}
-        {currentRole === 'admin' && activeNavTab === 'marketplace' && (
+        {currentRole === 'admin' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
             {!isSuperAdmin ? (
               <SuperAdminLoginGate onCancel={() => setCurrentRole('buyer')} />
@@ -229,20 +237,20 @@ const MainMarketplaceApp: React.FC = () => {
                 <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 uppercase tracking-wide">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-[#D4AF37]/20 text-[#000000] border border-[#D4AF37]/40 uppercase tracking-wide">
                         Private Super Admin Dashboard
                       </span>
-                      <span className="text-xs text-slate-500">
-                        Authorized: <strong>Askia Market Executive</strong>
+                      <span className="text-xs text-stone-600">
+                        Authorized: <strong className="text-stone-900 font-mono">askiasventures@gmail.com</strong>
                       </span>
                     </div>
-                    <h1 className="text-2xl font-bold text-slate-900 mt-1">
-                      Platform Governance & Moderation Console
+                    <h1 className="text-2xl font-serif-brand font-bold text-stone-900 mt-1">
+                      Platform Governance &amp; Moderation Console
                     </h1>
                   </div>
                   <button
                     onClick={() => setCurrentRole('buyer')}
-                    className="text-xs text-slate-500 hover:text-slate-800 underline self-start sm:self-auto"
+                    className="text-xs text-stone-500 hover:text-stone-800 underline self-start sm:self-auto cursor-pointer"
                   >
                     Switch to Public Buyer View
                   </button>
@@ -254,7 +262,7 @@ const MainMarketplaceApp: React.FC = () => {
         )}
 
         {/* Standard Buyer / Public Marketplace Views */}
-        {(currentRole === 'buyer' || activeNavTab !== 'marketplace') && (
+        {currentRole === 'buyer' && (
           <>
             {/* View 1: Main Marketplace Feed */}
             {activeNavTab === 'marketplace' && (

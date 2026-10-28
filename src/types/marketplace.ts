@@ -4,9 +4,11 @@ export type AccountType = 'shop_owner' | 'advertiser' | 'admin' | 'buyer';
 
 export type AdminRole = 
   | 'super_admin' 
+  | 'coo'
   | 'verification_officer' 
   | 'moderation_admin' 
-  | 'finance_admin';
+  | 'finance_admin'
+  | 'growth_manager';
 
 export type ShopStaffRole = 
   | 'owner' 

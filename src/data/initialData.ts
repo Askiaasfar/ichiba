@@ -54,43 +54,53 @@ export const INITIAL_USERS: UserAccount[] = [
 
 export const INITIAL_ADMIN_STAFF: AdminStaffMember[] = [
   {
-    id: 'adm-1',
+    id: 'adm-super',
     name: 'Askia Market Executive',
     email: 'askiasventures@gmail.com',
     role: 'super_admin',
     assignedBy: 'System Owner',
-    permissions: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings'],
+    permissions: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings', 'system_security'],
     createdAt: '2026-01-01',
     status: 'active'
   },
   {
-    id: 'adm-2',
-    name: 'Olumide (Verification Compliance)',
-    email: 'compliance@askiamarket.ng',
-    role: 'verification_officer',
-    assignedBy: 'Super Administrator',
-    permissions: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers'],
+    id: 'adm-coo',
+    name: "Al'amin",
+    email: 'alamin.coo@askiamarket.ng',
+    role: 'coo',
+    assignedBy: 'Founder & Super Administrator',
+    permissions: ['operations_oversight', 'approve_shops', 'approve_ads', 'escalations', 'audit_sellers', 'view_reports'],
     createdAt: '2026-01-05',
     status: 'active'
   },
   {
-    id: 'adm-3',
-    name: 'Halima (Ad Moderation)',
-    email: 'moderator@askiamarket.ng',
-    role: 'moderation_admin',
-    assignedBy: 'Super Administrator',
-    permissions: ['approve_ads', 'reject_ads', 'flag_content', 'ban_advertisers'],
+    id: 'adm-finance',
+    name: 'Khadija',
+    email: 'khadija.finance@askiamarket.ng',
+    role: 'finance_admin',
+    assignedBy: 'Founder & Super Administrator',
+    permissions: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders', 'view_financial_analytics'],
+    createdAt: '2026-01-08',
+    status: 'active'
+  },
+  {
+    id: 'adm-growth',
+    name: 'Farhan',
+    email: 'farhan.growth@askiamarket.ng',
+    role: 'growth_manager',
+    assignedBy: 'Founder & Super Administrator',
+    permissions: ['approve_ads', 'flag_content', 'campaign_management', 'analytics', 'feature_promotions'],
     createdAt: '2026-01-10',
     status: 'active'
   },
   {
-    id: 'adm-4',
-    name: 'Emeka (Finance & Payouts)',
-    email: 'finance@askiamarket.ng',
-    role: 'finance_admin',
-    assignedBy: 'Super Administrator',
-    permissions: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders'],
-    createdAt: '2026-01-08',
+    id: 'adm-compliance',
+    name: 'Aminu',
+    email: 'aminu.compliance@askiamarket.ng',
+    role: 'verification_officer',
+    assignedBy: 'Founder & Super Administrator',
+    permissions: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers', 'kyc_document_review'],
+    createdAt: '2026-01-12',
     status: 'active'
   }
 ];
