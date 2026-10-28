@@ -197,7 +197,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   </button>
                   <button
                     type="submit"
-                    className="w-2/3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-sm"
+                    className="w-2/3 py-2.5 bg-[#D4AF37] hover:bg-[#c29f2f] text-black font-bold rounded-xl transition-colors shadow-sm"
                   >
                     Confirm & Place Order
                   </button>
@@ -227,7 +227,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
                   />
                   <div className="flex-1 min-w-0">
                     <h4 className="font-semibold text-slate-900 truncate">{item.product.title}</h4>
-                    <p className="text-[11px] text-emerald-700 font-medium truncate">
+                    <p className="text-[11px] text-[#9A7D0A] font-semibold truncate">
                       {item.product.shopName}
                     </p>
                     <div className="text-xs font-bold text-slate-900 font-mono-numbers mt-0.5">
@@ -258,7 +258,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose }) => {
 
             <button
               onClick={() => setStep('checkout')}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-sm text-xs"
+              className="w-full flex items-center justify-center gap-2 py-3 bg-[#D4AF37] hover:bg-[#c29f2f] text-black font-bold rounded-xl transition-colors shadow-sm text-xs"
             >
               <span>Proceed to Checkout</span>
               <ArrowRight className="w-4 h-4" />

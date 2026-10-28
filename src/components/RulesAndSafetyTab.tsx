@@ -49,11 +49,11 @@ export const RulesAndSafetyTab: React.FC = () => {
     <div className="max-w-5xl mx-auto space-y-8 py-6">
       {/* Intro Hero */}
       <div className="text-center space-y-3 max-w-2xl mx-auto">
-        <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+        <h2 className="text-2xl sm:text-3xl font-serif-brand font-bold tracking-tight text-slate-900">
           Platform Architecture & Safety Standards
         </h2>
-        <p className="text-sm text-slate-600 leading-relaxed">
-          NkemMarket maintains strict operational standards to protect buyers and provide transparent monetization for both established merchants and casual advertisers.
+        <p className="text-sm text-slate-600 leading-relaxed font-light">
+          <strong>ASKIA MARKET</strong> — <em>Your World. Your Market.</em> We maintain strict operational standards to protect buyers and provide transparent monetization for both corporate merchants and individual classified advertisers.
         </p>
       </div>
 

@@ -38,7 +38,8 @@ import {
   Building,
   Eye,
   BarChart2,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  Lock
 } from 'lucide-react';
 
 export const AdminPortal: React.FC = () => {
@@ -61,7 +62,8 @@ export const AdminPortal: React.FC = () => {
     products,
     adminStaff,
     addAdminStaff,
-    removeAdminStaff
+    removeAdminStaff,
+    logout
   } = useMarketplace();
 
   // Active admin sub-tab
@@ -257,17 +259,26 @@ export const AdminPortal: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Platform Banner Header */}
-      <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-sm border border-slate-800">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="px-2.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold text-xs">
-                {currentUser.adminRole ? currentUser.adminRole.replace('_', ' ').toUpperCase() : 'ADMIN ACCESS'}
+      <div className="bg-[#0A0A0A] text-white rounded-3xl p-7 shadow-xl border border-[#262626] relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-80 h-80 bg-[#D4AF37]/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative">
+          <div className="space-y-1.5">
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <div className="w-8 h-8 rounded-lg bg-black border border-[#D4AF37]/50 text-[#D4AF37] flex items-center justify-center font-bold text-sm shadow-sm font-serif-brand">
+                A
+              </div>
+              <span className="px-2.5 py-0.5 rounded-full bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30 font-bold text-[10px] tracking-widest uppercase">
+                {currentUser.adminRole ? currentUser.adminRole.replace('_', ' ').toUpperCase() : 'SUPER ADMIN PRIVILEGES'}
               </span>
-              <h2 className="text-xl font-bold">Central Platform Administration Dashboard</h2>
+              <h2 className="text-xl font-serif-brand font-bold tracking-wide">
+                ASKIA MARKET <span className="text-[#D4AF37] font-sans font-normal text-sm">· Executive Command</span>
+              </h2>
             </div>
-            <p className="text-xs text-slate-400 mt-1">
-              Logged in as <strong>{currentUser.name}</strong> ({currentUser.email}). Manage verified merchants, approve classified ads, authorize payments, and configure admin roles.
+            <p className="text-[11px] text-[#D4AF37] font-medium tracking-wider uppercase font-sans">
+              Your World. Your Market.
+            </p>
+            <p className="text-xs text-slate-400 font-light">
+              Authenticated Administrator: <strong className="text-slate-200">{currentUser.name}</strong> ({currentUser.email}). Manage verified merchant storefronts, moderate classified listings, release escrow payouts, and govern administrative staff.
             </p>
           </div>
 
@@ -278,6 +289,15 @@ export const AdminPortal: React.FC = () => {
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>Add Admin Role</span>
+            </button>
+
+            <button
+              onClick={() => logout()}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-red-950/80 border border-slate-700 hover:border-red-600/60 text-slate-300 hover:text-red-200 rounded-xl text-xs font-semibold transition-colors shadow-xs"
+              title="Lock Admin Dashboard and log out"
+            >
+              <Lock className="w-3.5 h-3.5 text-red-400" />
+              <span>Lock Admin Dashboard</span>
             </button>
           </div>
         </div>
@@ -1361,7 +1381,7 @@ export const AdminPortal: React.FC = () => {
                   required
                   value={newStaffEmail}
                   onChange={(e) => setNewStaffEmail(e.target.value)}
-                  placeholder="e.g. ibrahim.moderation@nkemmarket.ng"
+                  placeholder="e.g. ibrahim.moderation@askiamarket.ng"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-indigo-500"
                 />
               </div>

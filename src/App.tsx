@@ -15,6 +15,7 @@ import { RulesAndSafetyTab } from './components/RulesAndSafetyTab';
 import { CautionNoticeBanner } from './components/CautionNoticeBanner';
 import { AuthModal } from './components/AuthModal';
 import { ChatModal } from './components/ChatModal';
+import { SuperAdminLoginGate } from './components/SuperAdminLoginGate';
 import { Product, Advertisement, Shop } from './types/marketplace';
 import {
   Search,
@@ -44,6 +45,7 @@ const MainMarketplaceApp: React.FC = () => {
     currentRole,
     setCurrentRole,
     currentUser,
+    isSuperAdmin,
     platformSettings
   } = useMarketplace();
 
@@ -217,26 +219,37 @@ const MainMarketplaceApp: React.FC = () => {
           </div>
         )}
 
-        {/* If in Admin Role mode, display the Comprehensive Central Admin Console */}
+        {/* If in Admin Role mode, display the Private Super Admin Console or the Secure Login Gate */}
         {currentRole === 'admin' && activeNavTab === 'marketplace' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-            <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <span className="text-xs font-semibold text-indigo-800 uppercase tracking-wide">
-                  Central Authority
-                </span>
-                <h1 className="text-2xl font-bold text-slate-900">
-                  Central Admin Management Dashboard
-                </h1>
-              </div>
-              <button
-                onClick={() => setCurrentRole('buyer')}
-                className="text-xs text-slate-500 hover:text-slate-800 underline self-start sm:self-auto"
-              >
-                Switch to Public Buyer View
-              </button>
-            </div>
-            <AdminPortal />
+            {!isSuperAdmin ? (
+              <SuperAdminLoginGate onCancel={() => setCurrentRole('buyer')} />
+            ) : (
+              <>
+                <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 uppercase tracking-wide">
+                        Private Super Admin Dashboard
+                      </span>
+                      <span className="text-xs text-slate-500">
+                        Authorized: <strong>Askia Market Executive</strong>
+                      </span>
+                    </div>
+                    <h1 className="text-2xl font-bold text-slate-900 mt-1">
+                      Platform Governance & Moderation Console
+                    </h1>
+                  </div>
+                  <button
+                    onClick={() => setCurrentRole('buyer')}
+                    className="text-xs text-slate-500 hover:text-slate-800 underline self-start sm:self-auto"
+                  >
+                    Switch to Public Buyer View
+                  </button>
+                </div>
+                <AdminPortal />
+              </>
+            )}
           </div>
         )}
 
@@ -496,26 +509,41 @@ const MainMarketplaceApp: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="bg-white border-t border-slate-200 mt-auto text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <span className="font-bold text-slate-900 text-sm">NkemMarket</span>
-            <span>·</span>
-            <span>Verified Merchant Storefronts & Classified Ads</span>
+      <footer className="bg-[#0A0A0A] border-t border-[#262626] mt-auto text-xs text-slate-400">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-left">
+            <span className="font-serif-brand font-bold text-white text-base tracking-wide">
+              ASKIA <span className="text-[#D4AF37] font-semibold">MARKET</span>
+            </span>
+            <span className="text-[#D4AF37]/90 text-[11px] font-sans tracking-widest uppercase">
+              · Your World. Your Market.
+            </span>
+            <span className="text-slate-600 hidden md:inline">·</span>
+            <span className="text-slate-400">Verified Corporate Merchants & Moderated Classifieds</span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
-            <button onClick={() => setActiveNavTab('rules')} className="hover:text-slate-900 transition-colors">
-              Monetization & Safety Policy
+          <div className="flex flex-wrap items-center gap-5 text-xs text-slate-400">
+            <button onClick={() => setActiveNavTab('rules')} className="hover:text-[#D4AF37] transition-colors">
+              Platform Policy & Escrow
             </button>
-            <button onClick={() => setActiveNavTab('shops')} className="hover:text-slate-900 transition-colors">
+            <button onClick={() => setActiveNavTab('shops')} className="hover:text-[#D4AF37] transition-colors">
               Verified Directory
             </button>
-            <button onClick={() => setActiveNavTab('classifieds')} className="hover:text-slate-900 transition-colors">
+            <button onClick={() => setActiveNavTab('classifieds')} className="hover:text-[#D4AF37] transition-colors">
               Classified Ads
             </button>
-            <button onClick={() => handleOpenAuth('login')} className="hover:text-slate-900 transition-colors font-semibold">
-              Admin & Merchant Sign In
+            <button onClick={() => handleOpenAuth('login')} className="hover:text-white transition-colors font-medium">
+              Account Sign In
+            </button>
+            <button
+              onClick={() => {
+                setActiveNavTab('marketplace');
+                setCurrentRole('admin');
+              }}
+              className="text-[#D4AF37]/80 hover:text-[#D4AF37] transition-colors flex items-center gap-1 font-mono text-[11px]"
+              title="Super Admin Private Console (Restricted to Askia Market Executives)"
+            >
+              <span>🔒 Executive Admin Portal</span>
             </button>
           </div>
         </div>

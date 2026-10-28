@@ -18,6 +18,7 @@ export interface UserAccount {
   id: string;
   name: string;
   email: string;
+  password?: string;
   phone: string;
   accountType: AccountType;
   adminRole?: AdminRole;

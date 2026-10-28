@@ -43,7 +43,9 @@ interface MarketplaceContextType {
   users: UserAccount[];
   adminStaff: AdminStaffMember[];
   shopStaff: ShopStaffMember[];
+  isSuperAdmin: boolean;
   loginAsUser: (userId: string) => void;
+  loginSuperAdmin: (email: string, password: string) => { success: boolean; error?: string };
   registerUser: (data: {
     name: string;
     email: string;
@@ -119,7 +121,7 @@ interface MarketplaceContextType {
   resetDemoData: () => void;
 }
 
-const STORAGE_KEY = 'AURA_NKEM_MARKETPLACE_v2';
+const STORAGE_KEY = 'ASKIA_MARKET_v1';
 
 const MarketplaceContext = createContext<MarketplaceContextType | undefined>(undefined);
 
@@ -130,13 +132,18 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return saved ? JSON.parse(saved) : INITIAL_USERS;
   });
 
-  // Current logged in user (defaults to Super Admin for easy full review, or first user)
+  // Current logged in user (defaults to Buyer; Super Admin requires explicit password login)
   const [currentUserId, setCurrentUserId] = useState<string>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_current_user_id`);
-    return saved || 'usr-admin-super';
+    if (saved && users.some((u) => u.id === saved)) {
+      return saved;
+    }
+    const defaultBuyer = INITIAL_USERS.find((u) => u.accountType === 'buyer');
+    return defaultBuyer ? defaultBuyer.id : INITIAL_USERS[0].id;
   });
 
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0];
+  const currentUser = users.find((u) => u.id === currentUserId) || users.find((u) => u.accountType === 'buyer') || users[0];
+  const isSuperAdmin = (currentUser?.email?.toLowerCase() === 'askiasventures@gmail.com' || currentUser?.email?.toLowerCase() === 'askiabusiness18@gmail.com') && currentUser?.accountType === 'admin';
 
   // Admin staff directory
   const [adminStaff, setAdminStaff] = useState<AdminStaffMember[]>(() => {
@@ -283,11 +290,53 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Login handler
   const loginAsUser = (userId: string) => {
-    setCurrentUserId(userId);
     const u = users.find((x) => x.id === userId);
-    if (u) {
-      setCurrentRole(u.accountType as UserRole);
+    if (!u) return;
+    // Admin account cannot be switched into without explicit super admin password
+    if (u.accountType === 'admin') {
+      return;
     }
+    setCurrentUserId(userId);
+    setCurrentRole(u.accountType as UserRole);
+  };
+
+  // Secure Super Admin Authentication
+  const loginSuperAdmin = (email: string, password: string): { success: boolean; error?: string } => {
+    const cleanEmail = email.trim().toLowerCase();
+    const isAuthorized = cleanEmail === 'askiasventures@gmail.com' || cleanEmail === 'askiabusiness18@gmail.com';
+    
+    if (!isAuthorized) {
+      return {
+        success: false,
+        error: 'Access Denied: Only authorized Askia Market administrators are permitted.'
+      };
+    }
+
+    if (password !== '0852,sudais') {
+      return {
+        success: false,
+        error: 'Invalid password. Access denied to the private Admin Dashboard.'
+      };
+    }
+
+    let adminUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
+    if (!adminUser) {
+      adminUser = {
+        id: 'usr-super-admin-askia',
+        name: 'Askia Market Executive',
+        email: cleanEmail,
+        password: '0852,sudais',
+        phone: '+234 800 000 0001',
+        accountType: 'admin',
+        adminRole: 'super_admin',
+        createdAt: '2026-01-01T00:00:00Z'
+      };
+      setUsers((prev) => [adminUser!, ...prev.filter((x) => x.email.toLowerCase() !== cleanEmail)]);
+    }
+
+    setCurrentUserId(adminUser.id);
+    setCurrentRole('admin');
+    return { success: true };
   };
 
   const logout = () => {
@@ -1057,7 +1106,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.removeItem(`${STORAGE_KEY}_settings`);
 
     setUsers(INITIAL_USERS);
-    setCurrentUserId('usr-admin-super');
+    setCurrentUserId('usr-buyer-guest');
+    setCurrentRole('buyer');
     setAdminStaff(INITIAL_ADMIN_STAFF);
     setShopStaff(INITIAL_SHOP_STAFF);
     setShops(INITIAL_SHOPS);
@@ -1078,7 +1128,9 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         users,
         adminStaff,
         shopStaff,
+        isSuperAdmin,
         loginAsUser,
+        loginSuperAdmin,
         registerUser,
         logout,
         currentRole,

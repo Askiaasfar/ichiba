@@ -122,7 +122,7 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
               <div className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-amber-900 bg-amber-50 px-3 py-1 rounded-md border border-amber-200">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
                 <span>
-                  <strong>Note:</strong> All ads carry a mandatory Buyer Caution notice stating NkemMarket is not liable for transactions.
+                  <strong>Note:</strong> All ads carry a mandatory Buyer Caution notice stating ASKIA MARKET is not liable for transactions.
                 </span>
               </div>
             </div>
@@ -475,7 +475,7 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
                     className="w-4 h-4 text-amber-600 rounded border-amber-400 mt-0.5"
                   />
                   <label htmlFor="cautionAck" className="text-xs text-amber-950 font-medium leading-relaxed">
-                    <strong>Mandatory Advertiser Agreement:</strong> I acknowledge that because I do not operate a CAC-verified merchant store, my listing is an <em>individual classified advertisement</em> and will prominently display the platform caution banner informing buyers that <strong>NkemMarket accepts no liability for transactions or money loss</strong> made with me.
+                    <strong>Mandatory Advertiser Agreement:</strong> I acknowledge that because I do not operate a CAC-verified merchant store, my listing is an <em>individual classified advertisement</em> and will prominently display the platform caution banner informing buyers that <strong>ASKIA MARKET accepts no liability for transactions or money loss</strong> made with me.
                   </label>
                 </div>
               </div>

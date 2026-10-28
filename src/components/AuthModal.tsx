@@ -27,7 +27,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onClose,
   initialMode = 'login'
 }) => {
-  const { users, loginAsUser, registerUser } = useMarketplace();
+  const { users, loginAsUser, loginSuperAdmin, registerUser } = useMarketplace();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   
   // Registration Category: 'shop_owner' | 'advertiser'
@@ -63,15 +63,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setLoginError(null);
 
+    const cleanEmail = loginEmail.trim().toLowerCase();
+
+    // Super Admin authentication check
+    if (cleanEmail === 'askiasventures@gmail.com' || cleanEmail === 'askiabusiness18@gmail.com') {
+      const res = loginSuperAdmin(loginEmail, loginPassword);
+      if (res.success) {
+        onClose();
+      } else {
+        setLoginError(res.error || 'Access Denied: Invalid Super Admin password.');
+      }
+      return;
+    }
+
     const user = users.find(
-      (u) => u.email.toLowerCase() === loginEmail.trim().toLowerCase()
+      (u) => u.email.toLowerCase() === cleanEmail
     );
 
     if (user) {
+      if (user.accountType === 'admin') {
+        setLoginError('This is a Super Admin account. Please provide the authorized Super Admin password.');
+        return;
+      }
       loginAsUser(user.id);
       onClose();
     } else {
-      setLoginError('No registered account found with this email. Select a quick demo profile below or register.');
+      setLoginError('No registered account found with this email. Please check your credentials or register below.');
     }
   };
 
@@ -120,21 +137,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
       <div className="relative bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
         {/* Header Bar */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm">
-              N
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-black text-white">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-black border border-[#D4AF37]/60 text-[#D4AF37] flex items-center justify-center font-bold text-sm shadow-sm font-serif-brand">
+              A
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 className="text-sm font-bold text-white font-serif-brand tracking-wide">
                 {mode === 'login' ? 'Account Sign In' : 'Create an Account'}
               </h3>
-              <p className="text-[11px] text-slate-500">Nkem Marketplace Commerce & Classifieds</p>
+              <p className="text-[11px] text-[#D4AF37]/90 font-light">ASKIA MARKET · Your World. Your Market.</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+            className="p-1 text-slate-400 hover:text-white rounded-lg transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -203,7 +220,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
-                      placeholder="e.g. admin@nkemmarket.ng or merchant@auratech.ng"
+                      placeholder="e.g. askiasventures@gmail.com or merchant@auratech.ng"
                       className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-emerald-500"
                     />
                   </div>
@@ -238,57 +255,69 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </span>
 
                 <div className="space-y-1.5">
-                  {users.map((u) => (
-                    <button
-                      key={u.id}
-                      type="button"
-                      onClick={() => {
-                        loginAsUser(u.id);
-                        onClose();
-                      }}
-                      className="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 hover:bg-emerald-50/60 hover:border-emerald-300 transition-all text-left flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2.5">
-                        <div className={`p-1.5 rounded-md text-white font-bold text-xs ${
-                          u.accountType === 'admin'
-                            ? 'bg-indigo-600'
-                            : u.accountType === 'shop_owner'
-                            ? 'bg-emerald-600'
-                            : 'bg-amber-500'
-                        }`}>
-                          {u.accountType === 'admin' ? (
-                            <Shield className="w-3.5 h-3.5" />
-                          ) : u.accountType === 'shop_owner' ? (
-                            <ShieldCheck className="w-3.5 h-3.5" />
-                          ) : (
-                            <Megaphone className="w-3.5 h-3.5" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-semibold text-slate-900 text-xs">
-                            {u.name}
+                  {users
+                    .filter((u) => u.accountType !== 'admin')
+                    .map((u) => (
+                      <button
+                        key={u.id}
+                        type="button"
+                        onClick={() => {
+                          loginAsUser(u.id);
+                          onClose();
+                        }}
+                        className="w-full p-2.5 rounded-lg border border-slate-200 bg-slate-50/60 hover:bg-emerald-50/60 hover:border-emerald-300 transition-all text-left flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-1.5 rounded-md text-white font-bold text-xs ${
+                            u.accountType === 'shop_owner'
+                              ? 'bg-emerald-600'
+                              : 'bg-amber-500'
+                          }`}>
+                            {u.accountType === 'shop_owner' ? (
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                            ) : (
+                              <Megaphone className="w-3.5 h-3.5" />
+                            )}
                           </div>
-                          <div className="text-[11px] text-slate-500 font-mono-numbers">
-                            {u.email}
+                          <div>
+                            <div className="font-semibold text-slate-900 text-xs">
+                              {u.name}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-mono-numbers">
+                              {u.email}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        u.accountType === 'admin'
-                          ? 'bg-indigo-100 text-indigo-900'
-                          : u.accountType === 'shop_owner'
-                          ? 'bg-emerald-100 text-emerald-900'
-                          : 'bg-amber-100 text-amber-900'
-                      }`}>
-                        {u.accountType === 'admin'
-                          ? u.adminRole?.replace('_', ' ')
-                          : u.accountType === 'shop_owner'
-                          ? 'Shop Owner'
-                          : 'Advertiser'}
-                      </span>
-                    </button>
-                  ))}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          u.accountType === 'shop_owner'
+                            ? 'bg-emerald-100 text-emerald-900'
+                            : 'bg-amber-100 text-amber-900'
+                        }`}>
+                          {u.accountType === 'shop_owner'
+                            ? 'Shop Owner'
+                            : 'Advertiser'}
+                        </span>
+                      </button>
+                    ))}
+                </div>
+
+                {/* Private Super Admin Access Notice */}
+                <div className="mt-3 p-2.5 rounded-lg bg-indigo-50/60 border border-indigo-200/60 flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-2 text-indigo-950 font-medium">
+                    <Lock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                    <span>Private Super Admin portal requires password.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginEmail('askiasventures@gmail.com');
+                      setLoginPassword('');
+                    }}
+                    className="text-indigo-600 hover:text-indigo-800 font-bold underline"
+                  >
+                    Fill Admin Email
+                  </button>
                 </div>
               </div>
             </div>
@@ -302,7 +331,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       Select Your Account Category
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Choose how you intend to operate on NkemMarket:
+                      Choose how you intend to operate on ASKIA MARKET:
                     </p>
                   </div>
 

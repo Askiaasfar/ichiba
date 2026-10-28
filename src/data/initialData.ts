@@ -14,41 +14,23 @@ import {
 
 export const INITIAL_USERS: UserAccount[] = [
   {
-    id: 'usr-admin-super',
-    name: 'Super Admin Officer',
-    email: 'admin@nkemmarket.ng',
-    phone: '+234 800 111 2233',
+    id: 'usr-super-admin-askia',
+    name: 'Askia Market Executive',
+    email: 'askiasventures@gmail.com',
+    password: '0852,sudais',
+    phone: '+234 800 000 0001',
     accountType: 'admin',
     adminRole: 'super_admin',
     createdAt: '2026-01-01T00:00:00Z',
     avatarUrl: ''
   },
   {
-    id: 'usr-admin-verify',
-    name: 'Olumide (Verification Compliance)',
-    email: 'compliance@nkemmarket.ng',
-    phone: '+234 802 334 5566',
-    accountType: 'admin',
-    adminRole: 'verification_officer',
-    createdAt: '2026-01-05T00:00:00Z'
-  },
-  {
-    id: 'usr-admin-finance',
-    name: 'Emeka (Finance & Payouts)',
-    email: 'finance@nkemmarket.ng',
-    phone: '+234 803 778 9900',
-    accountType: 'admin',
-    adminRole: 'finance_admin',
-    createdAt: '2026-01-08T00:00:00Z'
-  },
-  {
-    id: 'usr-admin-moderator',
-    name: 'Halima (Ad Moderation)',
-    email: 'moderator@nkemmarket.ng',
-    phone: '+234 809 112 3344',
-    accountType: 'admin',
-    adminRole: 'moderation_admin',
-    createdAt: '2026-01-10T00:00:00Z'
+    id: 'usr-buyer-guest',
+    name: 'Customer (Buyer)',
+    email: 'buyer@lagos.ng',
+    phone: '+234 801 234 5678',
+    accountType: 'buyer',
+    createdAt: '2026-01-02T00:00:00Z'
   },
   {
     id: 'usr-owner-1',
@@ -73,10 +55,10 @@ export const INITIAL_USERS: UserAccount[] = [
 export const INITIAL_ADMIN_STAFF: AdminStaffMember[] = [
   {
     id: 'adm-1',
-    name: 'Super Administrator',
-    email: 'admin@nkemmarket.ng',
+    name: 'Askia Market Executive',
+    email: 'askiasventures@gmail.com',
     role: 'super_admin',
-    assignedBy: 'System Bootstrap',
+    assignedBy: 'System Owner',
     permissions: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings'],
     createdAt: '2026-01-01',
     status: 'active'
@@ -84,7 +66,7 @@ export const INITIAL_ADMIN_STAFF: AdminStaffMember[] = [
   {
     id: 'adm-2',
     name: 'Olumide (Verification Compliance)',
-    email: 'compliance@nkemmarket.ng',
+    email: 'compliance@askiamarket.ng',
     role: 'verification_officer',
     assignedBy: 'Super Administrator',
     permissions: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers'],
@@ -94,7 +76,7 @@ export const INITIAL_ADMIN_STAFF: AdminStaffMember[] = [
   {
     id: 'adm-3',
     name: 'Halima (Ad Moderation)',
-    email: 'moderator@nkemmarket.ng',
+    email: 'moderator@askiamarket.ng',
     role: 'moderation_admin',
     assignedBy: 'Super Administrator',
     permissions: ['approve_ads', 'reject_ads', 'flag_content', 'ban_advertisers'],
@@ -104,7 +86,7 @@ export const INITIAL_ADMIN_STAFF: AdminStaffMember[] = [
   {
     id: 'adm-4',
     name: 'Emeka (Finance & Payouts)',
-    email: 'finance@nkemmarket.ng',
+    email: 'finance@askiamarket.ng',
     role: 'finance_admin',
     assignedBy: 'Super Administrator',
     permissions: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders'],

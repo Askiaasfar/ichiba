@@ -1,7 +1,7 @@
 import React from 'react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { UserRole } from '../types/marketplace';
-import { ShieldCheck, ShoppingBag, Megaphone, Settings, RefreshCw, Sparkles, User, Shield } from 'lucide-react';
+import { ShieldCheck, ShoppingBag, Megaphone, Settings, RefreshCw, User, Shield, Lock, LogOut } from 'lucide-react';
 
 interface RoleSwitcherBarProps {
   onOpenAuthModal?: () => void;
@@ -12,8 +12,10 @@ export const RoleSwitcherBar: React.FC<RoleSwitcherBarProps> = ({ onOpenAuthModa
     currentRole,
     setCurrentRole,
     currentUser,
+    isSuperAdmin,
     users,
     loginAsUser,
+    logout,
     currentAdvertiserSubscription,
     currentShop,
     resetDemoData
@@ -21,6 +23,10 @@ export const RoleSwitcherBar: React.FC<RoleSwitcherBarProps> = ({ onOpenAuthModa
 
   const handleRoleSelect = (roleId: UserRole) => {
     setCurrentRole(roleId);
+    if (roleId === 'admin') {
+      // Admin dashboard is private; requires Super Admin authentication
+      return;
+    }
     // Find matching user for role to align currentUser
     const matchingUser = users.find((u) => u.accountType === roleId);
     if (matchingUser) {
@@ -49,9 +55,9 @@ export const RoleSwitcherBar: React.FC<RoleSwitcherBarProps> = ({ onOpenAuthModa
     },
     {
       id: 'admin',
-      label: 'Platform Admin Dashboard',
-      icon: <Settings className="w-3.5 h-3.5 text-indigo-600" />,
-      desc: 'Manage platform, approve sellers, approve ads, approve payments, admin roles'
+      label: isSuperAdmin ? "Super Admin Portal" : "Admin (🔒 Super Admin Only)",
+      icon: isSuperAdmin ? <Shield className="w-3.5 h-3.5 text-indigo-400" /> : <Lock className="w-3.5 h-3.5 text-indigo-400" />,
+      desc: 'Private platform management dashboard for Askia Market Super Admin'
     }
   ];
 
@@ -71,8 +77,8 @@ export const RoleSwitcherBar: React.FC<RoleSwitcherBarProps> = ({ onOpenAuthModa
                 onClick={() => handleRoleSelect(r.id)}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium transition-all whitespace-nowrap shrink-0 ${
                   isActive
-                    ? 'bg-emerald-500 text-slate-950 font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800'
+                    ? 'bg-[#D4AF37] text-black font-bold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-white/10'
                 }`}
                 title={r.desc}
               >
@@ -85,7 +91,21 @@ export const RoleSwitcherBar: React.FC<RoleSwitcherBarProps> = ({ onOpenAuthModa
 
         {/* Dynamic Context Pill & Demo Reset */}
         <div className="flex items-center gap-3 shrink-0 text-[11px] text-slate-400">
-          {currentUser && (
+          {isSuperAdmin ? (
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-950 border border-indigo-700/80 text-indigo-200 shadow-xs">
+              <Shield className="w-3.5 h-3.5 text-indigo-400" />
+              <span>
+                <strong>{currentUser.name}</strong> ({currentUser.email})
+              </span>
+              <button
+                onClick={() => logout()}
+                className="ml-1.5 px-1.5 py-0.5 rounded bg-red-900/60 hover:bg-red-800 text-red-200 text-[10px] font-bold transition-colors"
+                title="Log out of Super Admin session"
+              >
+                Log Out Admin
+              </button>
+            </div>
+          ) : currentUser ? (
             <button
               onClick={onOpenAuthModal}
               className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
@@ -93,13 +113,8 @@ export const RoleSwitcherBar: React.FC<RoleSwitcherBarProps> = ({ onOpenAuthModa
             >
               <User className="w-3 h-3 text-slate-400" />
               <span>{currentUser.name}</span>
-              {currentUser.adminRole && (
-                <span className="text-[10px] text-indigo-300 font-semibold font-mono-numbers">
-                  ({currentUser.adminRole.replace('_', ' ')})
-                </span>
-              )}
             </button>
-          )}
+          ) : null}
 
           {currentRole === 'shop_owner' && currentShop && (
             <div className="hidden lg:flex items-center gap-1.5 text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
