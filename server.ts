@@ -137,8 +137,9 @@ function logAuditEvent(
   if (auditLogs.length > 100) auditLogs.pop();
 }
 
-// Middlewares
-app.use(express.json());
+// Middlewares (25MB payload limits for base64 media uploads)
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 app.use(cookieParser());
 
 // Server-side Authentication Middleware for Protected Admin APIs
@@ -472,6 +473,159 @@ app.get('/api/admin/metrics', requireSuperAdmin, (req: Request, res: Response) =
 app.get('/api/admin/audit-logs', requireSuperAdmin, (req: Request, res: Response) => {
   res.json({
     logs: auditLogs
+  });
+});
+
+// ==========================================
+// STAFF APPLICATIONS & MANAGEMENT
+// ==========================================
+interface ServerStaffApplication {
+  id: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  desiredPosition: string;
+  department: string;
+  experienceSummary: string;
+  submittedAt: string;
+  status: 'pending' | 'approved' | 'rejected' | string;
+  assignedRole?: string;
+  assignedPermissions?: string[];
+  rejectionReason?: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+}
+
+let serverStaffApplications: ServerStaffApplication[] = [
+  {
+    id: 'app-001',
+    applicantName: 'Zainab Danjuma',
+    applicantEmail: 'zainab.danjuma@gmail.com',
+    applicantPhone: '+234 802 334 9911',
+    desiredPosition: 'Customer Experience & Merchant Support',
+    department: 'Operations & Strategy',
+    experienceSummary: '3+ years managing merchant onboarding and Tier-2 escalation resolution at Jumia Logistics Nigeria.',
+    submittedAt: '2026-10-27T10:15:00Z',
+    status: 'pending'
+  },
+  {
+    id: 'app-002',
+    applicantName: 'Emeka Umeh',
+    applicantEmail: 'emeka.umeh.risk@outlook.com',
+    applicantPhone: '+234 814 882 1044',
+    desiredPosition: 'KYC & Fraud Prevention Analyst',
+    department: 'Trust & Safety',
+    experienceSummary: 'Ex-Compliance associate at Moniepoint. Certified in CAC business verification and AML risk mitigation.',
+    submittedAt: '2026-10-28T14:30:00Z',
+    status: 'pending'
+  }
+];
+
+// Public / applicant submission endpoint
+app.post('/api/staff/apply', (req: Request, res: Response) => {
+  const { applicantName, applicantEmail, applicantPhone, desiredPosition, department, experienceSummary } = req.body;
+  if (!applicantName || !applicantEmail || !applicantPhone) {
+    return res.status(400).json({ error: 'Missing required applicant fields.' });
+  }
+
+  const newApp = {
+    id: `app-${Date.now()}`,
+    applicantName,
+    applicantEmail,
+    applicantPhone,
+    desiredPosition: desiredPosition || 'Operational Staff',
+    department: department || 'Operations & Strategy',
+    experienceSummary: experienceSummary || '',
+    submittedAt: new Date().toISOString(),
+    status: 'pending'
+  };
+
+  serverStaffApplications.unshift(newApp);
+  logAuditEvent('settings_update', applicantEmail, req.ip || '', `New staff application received: ${applicantName} (${desiredPosition})`);
+  return res.json({ success: true, application: newApp });
+});
+
+// Admin-protected: view all staff applications
+app.get('/api/admin/staff/applications', requireSuperAdmin, (req: Request, res: Response) => {
+  res.json({ applications: serverStaffApplications });
+});
+
+// Admin-protected: review staff application (approve or reject)
+app.post('/api/admin/staff/applications/:id/review', requireSuperAdmin, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { action, role, permissions, rejectionReason } = req.body;
+
+  const appIndex = serverStaffApplications.findIndex((a) => a.id === id);
+  if (appIndex === -1) {
+    return res.status(404).json({ error: 'Application not found.' });
+  }
+
+  const existing = serverStaffApplications[appIndex];
+  if (action === 'approve') {
+    serverStaffApplications[appIndex] = {
+      ...existing,
+      status: 'approved',
+      assignedRole: role || 'custom',
+      assignedPermissions: permissions || ['operations_oversight'],
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: (req as any).superAdmin.email
+    };
+    logAuditEvent('settings_update', (req as any).superAdmin.email, req.ip || '', `Approved staff application: ${existing.applicantName} as ${role}`);
+  } else {
+    serverStaffApplications[appIndex] = {
+      ...existing,
+      status: 'rejected',
+      rejectionReason: rejectionReason || 'Qualifications did not match current departmental openings.',
+      reviewedAt: new Date().toISOString(),
+      reviewedBy: (req as any).superAdmin.email
+    };
+    logAuditEvent('settings_update', (req as any).superAdmin.email, req.ip || '', `Rejected staff application: ${existing.applicantName}`);
+  }
+
+  return res.json({ success: true, application: serverStaffApplications[appIndex] });
+});
+
+// ==========================================
+// SERVER-SIDE ORDER PRICING & CHECKOUT INTEGRITY
+// ==========================================
+app.post('/api/orders/calculate', (req: Request, res: Response) => {
+  const { items, commissionRatePercent = 5.0 } = req.body;
+  if (!items || !Array.isArray(items)) {
+    return res.status(400).json({ error: 'Invalid items array.' });
+  }
+
+  let totalAmount = 0;
+  const calculatedItems = items.map((item: any) => {
+    // Pricing integrity: check for salePrice safely without defaulting to 0
+    const rawSalePrice = item.salePrice;
+    const hasValidSale = rawSalePrice !== undefined && rawSalePrice !== null && !isNaN(Number(rawSalePrice)) && Number(rawSalePrice) > 0;
+    const finalPrice = hasValidSale ? Number(rawSalePrice) : Number(item.price || 0);
+    const quantity = Math.max(1, Number(item.quantity || 1));
+    const lineTotal = finalPrice * quantity;
+    totalAmount += lineTotal;
+
+    return {
+      productId: item.id || item.productId,
+      title: item.title,
+      price: finalPrice,
+      quantity,
+      lineTotal,
+      shopId: item.shopId,
+      shopName: item.shopName
+    };
+  });
+
+  const platformCommission = Math.round((totalAmount * commissionRatePercent) / 100);
+  const merchantPayout = totalAmount - platformCommission;
+
+  return res.json({
+    items: calculatedItems,
+    subtotal: totalAmount,
+    commissionRatePercent,
+    platformCommission,
+    merchantPayout,
+    currency: 'NGN',
+    escrowGuaranteed: true
   });
 });
 

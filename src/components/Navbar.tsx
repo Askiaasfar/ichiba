@@ -8,6 +8,7 @@ interface NavbarProps {
   onOpenCart: () => void;
   onOpenCreateModal: () => void;
   onOpenAuthModal: () => void;
+  onOpenCustomerPortal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -15,9 +16,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   onOpenCart,
   onOpenCreateModal,
-  onOpenAuthModal
+  onOpenAuthModal,
+  onOpenCustomerPortal
 }) => {
-  const { cartCount, currentRole, currentUser, logout } = useMarketplace();
+  const { cartCount, currentRole, currentUser, logout, setCurrentRole } = useMarketplace();
+  const [showUserMenu, setShowUserMenu] = React.useState(false);
 
   return (
     <header className="sticky top-0 z-40 bg-[#0A0A0A] text-white border-b border-[#262626] shadow-sm">
@@ -105,28 +108,120 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
           </button>
 
-          {/* User Account Button */}
-          <button
-            onClick={onOpenAuthModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-700 hover:border-[#D4AF37]/50 bg-black/40 hover:bg-black text-slate-200 rounded-lg text-xs font-medium transition-colors shrink-0"
-            title="Switch account or register"
-          >
-            <User className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span className="hidden sm:inline max-w-[110px] truncate">
-              {currentUser ? currentUser.name.split(' ')[0] : 'Sign In'}
-            </span>
-            {currentUser && (
-              <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
-                currentUser.accountType === 'admin'
-                  ? 'bg-amber-400/20 text-amber-300 border border-amber-400/30'
-                  : currentUser.accountType === 'shop_owner'
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-slate-700 text-slate-300'
-              }`}>
-                {currentUser.accountType === 'admin' ? 'Super Admin' : currentUser.accountType === 'shop_owner' ? 'Merchant' : 'Ads'}
+          {/* User Account Button & Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-700 hover:border-[#D4AF37]/50 bg-black/40 hover:bg-black text-slate-200 rounded-lg text-xs font-medium transition-colors shrink-0"
+              title="Account Options"
+            >
+              <User className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span className="hidden sm:inline max-w-[110px] truncate">
+                {currentUser ? currentUser.name.split(' ')[0] : 'Sign In'}
               </span>
+              {currentUser && (
+                <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                  currentUser.accountType === 'admin'
+                    ? 'bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/30'
+                    : currentUser.accountType === 'shop_owner'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : currentUser.accountType === 'advertiser'
+                    ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    : 'bg-slate-700 text-slate-300'
+                }`}>
+                  {currentUser.accountType === 'admin' ? 'Super Admin' : currentUser.accountType === 'shop_owner' ? 'Merchant' : currentUser.accountType === 'advertiser' ? 'Ads' : 'Customer'}
+                </span>
+              )}
+            </button>
+
+            {showUserMenu && (
+              <div
+                className="absolute right-0 mt-2 w-56 bg-[#0A0A0A] border border-[#262626] rounded-xl shadow-2xl p-2 z-50 text-xs text-white animate-in fade-in zoom-in-95"
+                onMouseLeave={() => setShowUserMenu(false)}
+              >
+                <div className="px-2.5 py-2 border-b border-[#262626]">
+                  <div className="font-bold text-white truncate">{currentUser.name}</div>
+                  <div className="text-[11px] text-[#D4AF37] font-mono truncate">{currentUser.email}</div>
+                </div>
+
+                <div className="py-1 space-y-0.5">
+                  {currentUser.accountType === 'buyer' && onOpenCustomerPortal && (
+                    <button
+                      onClick={() => {
+                        onOpenCustomerPortal();
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 text-left hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between text-slate-200"
+                    >
+                      <span>My Orders & Wishlist</span>
+                      <span className="text-[10px] text-[#D4AF37] font-bold">Buyer</span>
+                    </button>
+                  )}
+
+                  {currentUser.accountType === 'shop_owner' && (
+                    <button
+                      onClick={() => {
+                        setCurrentRole('shop_owner');
+                        setActiveTab('marketplace');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 text-left hover:bg-emerald-950/60 text-emerald-400 rounded-lg transition-colors"
+                    >
+                      Merchant Storefront & Inventory
+                    </button>
+                  )}
+
+                  {currentUser.accountType === 'advertiser' && (
+                    <button
+                      onClick={() => {
+                        setCurrentRole('advertiser');
+                        setActiveTab('marketplace');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 text-left hover:bg-amber-950/60 text-amber-400 rounded-lg transition-colors"
+                    >
+                      Classified Ads Workspace
+                    </button>
+                  )}
+
+                  {currentUser.accountType === 'admin' && (
+                    <button
+                      onClick={() => {
+                        setCurrentRole('admin');
+                        setShowUserMenu(false);
+                      }}
+                      className="w-full px-2.5 py-1.5 text-left hover:bg-[#D4AF37]/20 text-[#D4AF37] font-bold rounded-lg transition-colors"
+                    >
+                      Super Admin Command Center
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      onOpenAuthModal();
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full px-2.5 py-1.5 text-left hover:bg-white/10 rounded-lg transition-colors text-slate-300"
+                  >
+                    Switch Account / Register
+                  </button>
+                </div>
+
+                <div className="pt-1 border-t border-[#262626]">
+                  <button
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                    }}
+                    className="w-full px-2.5 py-1.5 text-left hover:bg-red-950/60 text-red-400 rounded-lg transition-colors flex items-center justify-between"
+                  >
+                    <span>Sign Out</span>
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
             )}
-          </button>
+          </div>
 
           {/* Action button tailored to active role */}
           <button

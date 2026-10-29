@@ -1,6 +1,6 @@
 import React from 'react';
 import { Product, Advertisement } from '../types/marketplace';
-import { ShieldCheck, AlertTriangle, Sparkles, MapPin, ShoppingBag, MessageCircle } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, Sparkles, MapPin, ShoppingBag, MessageCircle, Heart } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
 
 type ListingItem = 
@@ -13,7 +13,7 @@ interface ListingCardProps {
 }
 
 export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
-  const { addToCart, openChat } = useMarketplace();
+  const { addToCart, openChat, currentUser, toggleWishlist } = useMarketplace();
 
   if (item.type === 'product') {
     const product = item.data;
@@ -41,6 +41,22 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
           <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded tracking-wide">
             {product.condition}
           </div>
+          {/* Wishlist Heart Toggle */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleWishlist(product.id);
+            }}
+            className={`absolute top-2.5 right-2.5 z-10 p-1.5 rounded-full backdrop-blur-xs transition-colors ${
+              currentUser?.wishlist?.includes(product.id)
+                ? 'bg-rose-50 text-rose-600 shadow-sm'
+                : 'bg-black/40 text-white hover:bg-black/70 hover:text-rose-400'
+            }`}
+            title={currentUser?.wishlist?.includes(product.id) ? 'Remove from wishlist' : 'Save to wishlist'}
+          >
+            <Heart className={`w-3.5 h-3.5 ${currentUser?.wishlist?.includes(product.id) ? 'fill-rose-600' : ''}`} />
+          </button>
         </div>
 
         {/* Product Details */}
@@ -68,9 +84,20 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
           <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2">
             <div>
               <span className="text-[10px] text-slate-400 block tracking-wide uppercase">Verified Price</span>
-              <div className="text-base font-bold text-slate-900 font-mono-numbers">
-                ₦{product.price.toLocaleString()}
-              </div>
+              {product.salePrice !== undefined && product.salePrice !== null && product.salePrice > 0 ? (
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-base font-bold text-amber-700 font-mono-numbers">
+                    ₦{product.salePrice.toLocaleString()}
+                  </span>
+                  <span className="text-[11px] text-slate-400 line-through font-mono-numbers">
+                    ₦{product.price.toLocaleString()}
+                  </span>
+                </div>
+              ) : (
+                <div className="text-base font-bold text-slate-900 font-mono-numbers">
+                  ₦{product.price.toLocaleString()}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-1.5">

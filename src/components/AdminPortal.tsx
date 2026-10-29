@@ -1,6 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useMarketplace } from '../context/MarketplaceContext';
-import { AdminRole, AdminStaffMember } from '../types/marketplace';
+import {
+  AdminRole,
+  AdminStaffMember,
+  StaffApplicationRequest,
+  StaffCompensationRecord,
+  AccountTypeConfig,
+  AccountType
+} from '../types/marketplace';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -39,7 +46,12 @@ import {
   Eye,
   BarChart2,
   PieChart as PieChartIcon,
-  Lock
+  Lock,
+  Wallet,
+  Briefcase,
+  FileCheck,
+  ChevronRight,
+  ShieldAlert
 } from 'lucide-react';
 
 export const AdminPortal: React.FC = () => {
@@ -63,19 +75,43 @@ export const AdminPortal: React.FC = () => {
     adminStaff,
     addAdminStaff,
     removeAdminStaff,
+    staffApplications,
+    approveStaffApplication,
+    rejectStaffApplication,
+    staffCompensation,
+    updateStaffCompensation,
+    processStaffPayout,
+    accountTypes,
+    updateAccountTypeConfig,
     logout
   } = useMarketplace();
 
   // Active admin sub-tab
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'overview' | 'sellers' | 'ads' | 'payments' | 'roles' | 'settings'
+    'overview' | 'sellers' | 'ads' | 'payments' | 'roles' | 'payroll' | 'account_types' | 'settings'
   >('overview');
 
-  // Staff creation form
+  // Staff creation form (Workflow A: Founder Invitation)
   const [showAddStaffModal, setShowAddStaffModal] = useState(false);
   const [newStaffName, setNewStaffName] = useState('');
   const [newStaffEmail, setNewStaffEmail] = useState('');
+  const [newStaffJobTitle, setNewStaffJobTitle] = useState('');
+  const [newStaffDepartment, setNewStaffDepartment] = useState('Operations & Strategy');
   const [newStaffRole, setNewStaffRole] = useState<AdminRole>('verification_officer');
+
+  // Staff Application Review Modal (Workflow B)
+  const [reviewingApp, setReviewingApp] = useState<StaffApplicationRequest | null>(null);
+  const [reviewAction, setReviewAction] = useState<'approve' | 'reject'>('approve');
+  const [assignedRoleForApp, setAssignedRoleForApp] = useState<AdminRole>('verification_officer');
+  const [assignedTitleForApp, setAssignedTitleForApp] = useState('');
+  const [assignedDeptForApp, setAssignedDeptForApp] = useState('Operations & Strategy');
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
+
+  // Staff Compensation Payout Modal
+  const [payoutModalRecord, setPayoutModalRecord] = useState<StaffCompensationRecord | null>(null);
+  const [payoutAmountNgn, setPayoutAmountNgn] = useState<string>('');
+  const [payoutReference, setPayoutReference] = useState<string>('');
+  const [payoutSuccessMsg, setPayoutSuccessMsg] = useState<string | null>(null);
 
   // Settings form state
   const [commRate, setCommRate] = useState(platformSettings.commissionRatePercent.toString());
@@ -241,21 +277,80 @@ export const AdminPortal: React.FC = () => {
       finance_admin: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders', 'view_financial_analytics'],
       growth_manager: ['approve_ads', 'flag_content', 'campaign_management', 'analytics', 'feature_promotions'],
       verification_officer: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers', 'kyc_document_review'],
-      moderation_admin: ['approve_ads', 'reject_ads', 'flag_content', 'ban_advertisers']
+      moderation_admin: ['approve_ads', 'reject_ads', 'flag_content', 'ban_advertisers'],
+      custom: ['operations_oversight', 'view_reports']
     };
 
     addAdminStaff({
       name: newStaffName,
       email: newStaffEmail,
       role: newStaffRole,
-      assignedBy: currentUser.name,
+      jobTitle: newStaffJobTitle || (newStaffRole === 'coo' ? 'Chief Operating Officer' : newStaffRole === 'finance_admin' ? 'Finance Administrator' : 'Staff Officer'),
+      department: newStaffDepartment || 'Operations & Strategy',
+      assignedBy: currentUser.name || 'Sensei Askia (Founder)',
       permissions: permissionsMap[newStaffRole],
       status: 'active'
     });
 
     setNewStaffName('');
     setNewStaffEmail('');
+    setNewStaffJobTitle('');
     setShowAddStaffModal(false);
+  };
+
+  const handleReviewAppSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewingApp) return;
+
+    if (reviewAction === 'approve') {
+      const permissionsMap: Record<AdminRole, string[]> = {
+        super_admin: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings', 'system_security'],
+        coo: ['operations_oversight', 'approve_shops', 'approve_ads', 'escalations', 'audit_sellers', 'view_reports'],
+        finance_admin: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders', 'view_financial_analytics'],
+        growth_manager: ['approve_ads', 'flag_content', 'campaign_management', 'analytics', 'feature_promotions'],
+        verification_officer: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers', 'kyc_document_review'],
+        moderation_admin: ['approve_ads', 'reject_ads', 'flag_content', 'ban_advertisers'],
+        custom: ['operations_oversight']
+      };
+
+      approveStaffApplication(
+        reviewingApp.id,
+        assignedRoleForApp,
+        assignedTitleForApp || reviewingApp.desiredPosition,
+        assignedDeptForApp || reviewingApp.department,
+        permissionsMap[assignedRoleForApp] || ['operations_oversight'],
+        currentUser.name || 'Sensei Askia (Founder)'
+      );
+    } else {
+      rejectStaffApplication(
+        reviewingApp.id,
+        rejectionReasonText || 'Application does not align with current departmental staffing priorities.',
+        currentUser.name || 'Sensei Askia (Founder)'
+      );
+    }
+
+    setReviewingApp(null);
+    setRejectionReasonText('');
+  };
+
+  const handleProcessPayoutSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!payoutModalRecord) return;
+    const amount = parseFloat(payoutAmountNgn) || payoutModalRecord.salaryNgn;
+    const ref = payoutReference.trim() || `SAL-${payoutModalRecord.staffName.toUpperCase().replace(/[^A-Z]/g, '')}-${Date.now().toString().slice(-4)}`;
+
+    processStaffPayout(
+      payoutModalRecord.id,
+      amount,
+      ref,
+      currentUser.name || 'Sensei Askia (Founder)'
+    );
+
+    setPayoutSuccessMsg(`Disbursement of ₦${amount.toLocaleString()} recorded for ${payoutModalRecord.staffName}. Reference: ${ref}`);
+    setTimeout(() => {
+      setPayoutSuccessMsg(null);
+      setPayoutModalRecord(null);
+    }, 2000);
   };
 
   return (
@@ -408,7 +503,31 @@ export const AdminPortal: React.FC = () => {
           }`}
         >
           <Users className="w-3.5 h-3.5" />
-          <span>Admin Team Roles ({adminStaff.length})</span>
+          <span>Staff Leadership & Applications ({staffApplications.filter((a) => a.status === 'pending').length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveAdminTab('payroll')}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+            activeAdminTab === 'payroll'
+              ? 'bg-emerald-700 text-white shadow-xs'
+              : 'text-emerald-900 hover:bg-emerald-50'
+          }`}
+        >
+          <Wallet className="w-3.5 h-3.5" />
+          <span>Staff Payroll & Compensation</span>
+        </button>
+
+        <button
+          onClick={() => setActiveAdminTab('account_types')}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+            activeAdminTab === 'account_types'
+              ? 'bg-[#0A0A0A] text-[#D4AF37] border border-[#D4AF37]/50 shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Building className="w-3.5 h-3.5" />
+          <span>Account Types & Policies</span>
         </button>
 
         <button
@@ -1148,45 +1267,56 @@ export const AdminPortal: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 5: Admin Team Roles & Permissions */}
+      {/* Tab 5: Admin Team Roles & Staff Management */}
       {activeAdminTab === 'roles' && (
         <div className="space-y-6">
+          {/* Active Operating Leadership Team */}
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Users className="w-5 h-5 text-indigo-600" />
-                  <span>Platform Administrative Staff & Roles</span>
+                  <span>Platform Operating Team & Leadership</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Order admin roles, assign permissions, and empower dedicated staff to verify sellers, moderate classified ads, and approve payments.
+                  Internal organizational hierarchy established by Founder Sensei Askia. Governs operations oversight, seller verification, marketing growth, and escrow release.
                 </p>
               </div>
 
               <button
                 onClick={() => setShowAddStaffModal(true)}
-                className="flex items-center gap-1.5 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition-colors shadow-xs shrink-0"
+                className="flex items-center gap-1.5 px-3.5 py-2 bg-black hover:bg-slate-900 text-[#D4AF37] border border-[#D4AF37]/50 rounded-xl text-xs font-bold transition-colors shadow-xs shrink-0"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>Assign New Admin Role</span>
+                <span>Invite New Staff Member</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
               {adminStaff.map((staff) => (
                 <div
                   key={staff.id}
-                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-3"
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/70 flex flex-col justify-between space-y-3 hover:border-[#D4AF37]/60 transition-all shadow-xs"
                 >
                   <div className="space-y-2">
-                    <div className="flex items-start justify-between">
+                    <div className="flex items-start justify-between gap-2">
                       <div>
-                        <h4 className="font-bold text-slate-900 text-sm">{staff.name}</h4>
-                        <span className="text-xs text-slate-500 font-mono-numbers">{staff.email}</span>
+                        <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                          <span>{staff.name}</span>
+                          {staff.role === 'super_admin' && (
+                            <span className="text-[10px] text-[#D4AF37] font-serif-brand font-bold">★</span>
+                          )}
+                        </h4>
+                        <div className="text-[11px] font-semibold text-slate-800 mt-0.5">
+                          {staff.jobTitle || 'Executive Officer'}
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-mono-numbers block">
+                          {staff.email}
+                        </span>
                       </div>
-                      <span className={`px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider shrink-0 ${
                         staff.role === 'super_admin'
-                          ? 'bg-[#D4AF37]/20 text-[#000000] border border-[#D4AF37]'
+                          ? 'bg-[#000000] text-[#D4AF37] border border-[#D4AF37]/60'
                           : staff.role === 'coo'
                           ? 'bg-purple-100 text-purple-900 border border-purple-200'
                           : staff.role === 'finance_admin'
@@ -1201,11 +1331,28 @@ export const AdminPortal: React.FC = () => {
                       </span>
                     </div>
 
+                    <div className="text-[10px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 space-y-1">
+                      <div className="font-semibold text-slate-700 flex items-center justify-between">
+                        <span>Department:</span>
+                        <span className="text-slate-900 font-medium">{staff.department || 'Operations'}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-500">
+                        <span>Status:</span>
+                        <span className="text-emerald-700 font-bold capitalize">{staff.status}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-slate-500">
+                        <span>Last Active:</span>
+                        <span className="text-slate-700 font-medium">{staff.lastActive || 'Today'}</span>
+                      </div>
+                    </div>
+
                     <div className="text-[11px] text-slate-600 space-y-1">
-                      <span className="font-semibold text-slate-700 block">Permissions:</span>
+                      <span className="font-semibold text-slate-700 block text-[10px] uppercase tracking-wider">
+                        Authorized Permissions:
+                      </span>
                       <div className="flex flex-wrap gap-1">
                         {staff.permissions.map((p) => (
-                          <span key={p} className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[10px] text-slate-600">
+                          <span key={p} className="px-1.5 py-0.5 bg-white border border-slate-200 rounded text-[9px] text-slate-700 font-mono">
                             {p.replace(/_/g, ' ')}
                           </span>
                         ))}
@@ -1214,15 +1361,319 @@ export const AdminPortal: React.FC = () => {
                   </div>
 
                   <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] text-slate-500">
-                    <span>Assigned by: {staff.assignedBy}</span>
+                    <span>Assigned by: <strong className="text-slate-700">{staff.assignedBy}</strong></span>
                     {staff.role !== 'super_admin' && (
                       <button
                         onClick={() => removeAdminStaff(staff.id)}
-                        className="text-red-600 hover:text-red-700 font-medium"
+                        className="text-red-600 hover:text-red-700 font-semibold hover:underline"
                       >
-                        Remove Admin
+                        Revoke Access
                       </button>
                     )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Workflow B: Staff Applications Queue */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <FileCheck className="w-5 h-5 text-emerald-600" />
+                  <span>Applicant Review Queue (Workflow B)</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Applications submitted through the external staff portal. Requires Founder & Super Admin evaluation and role assignment.
+                </p>
+              </div>
+
+              <span className="px-2.5 py-1 bg-amber-100 text-amber-900 text-xs font-bold rounded-lg font-mono-numbers">
+                {staffApplications.filter((a) => a.status === 'pending').length} Pending Review
+              </span>
+            </div>
+
+            {staffApplications.length === 0 ? (
+              <div className="p-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs text-slate-500">
+                No staff applications submitted yet.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider text-[11px]">
+                      <th className="pb-3 font-semibold">Applicant</th>
+                      <th className="pb-3 font-semibold">Target Position</th>
+                      <th className="pb-3 font-semibold">Department</th>
+                      <th className="pb-3 font-semibold">Experience Summary</th>
+                      <th className="pb-3 font-semibold">Status</th>
+                      <th className="pb-3 font-semibold text-right">Founder Decision</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {staffApplications.map((app) => (
+                      <tr key={app.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-3">
+                          <div className="font-bold text-slate-900">{app.applicantName}</div>
+                          <div className="text-[11px] text-slate-500 font-mono-numbers">{app.applicantEmail}</div>
+                          <div className="text-[11px] text-slate-500">{app.applicantPhone}</div>
+                        </td>
+                        <td className="py-3 font-semibold text-slate-800">{app.desiredPosition}</td>
+                        <td className="py-3 text-slate-600">{app.department}</td>
+                        <td className="py-3 text-slate-600 max-w-xs truncate" title={app.experienceSummary}>
+                          {app.experienceSummary}
+                        </td>
+                        <td className="py-3">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            app.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : app.status === 'rejected'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {app.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td className="py-3 text-right">
+                          {app.status === 'pending' ? (
+                            <button
+                              onClick={() => {
+                                setReviewingApp(app);
+                                setAssignedTitleForApp(app.desiredPosition);
+                                setAssignedDeptForApp(app.department);
+                              }}
+                              className="px-3 py-1.5 bg-black hover:bg-slate-800 text-[#D4AF37] font-bold text-xs rounded-lg transition-colors border border-[#D4AF37]/40 shadow-xs"
+                            >
+                              Review & Authorize
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-500 italic">
+                              {app.reviewedBy ? `Reviewed by ${app.reviewedBy.split(' ')[0]}` : 'Processed'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 6: Staff Compensation & Payroll */}
+      {activeAdminTab === 'payroll' && (
+        <div className="space-y-6">
+          {/* Safeguard Notice */}
+          <div className="bg-gradient-to-r from-emerald-950 via-slate-950 to-black text-white p-5 rounded-2xl border border-emerald-800/60 shadow-md space-y-2">
+            <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+              <ShieldAlert className="w-5 h-5 text-emerald-400 shrink-0" />
+              <span>Restricted Treasury & Founder Payroll Console</span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
+              Internal staff salaries are funded strictly from the company's settled commission revenue and platform capital reserves. Staff compensation is <strong>strictly isolated</strong> from customer order escrow funds, ensuring customer buyer protection remains 100% solvent.
+            </p>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-xs text-slate-500">Monthly Payroll Obligation</span>
+              <div className="text-xl font-bold text-slate-900 font-mono-numbers">
+                ₦{staffCompensation.reduce((sum, c) => sum + c.salaryNgn, 0).toLocaleString()}
+              </div>
+              <span className="text-[10px] text-emerald-700 font-semibold block">Across 4 executive officers</span>
+            </div>
+
+            <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-xs text-slate-500">Active Payroll Count</span>
+              <div className="text-xl font-bold text-slate-900 font-mono-numbers">
+                {staffCompensation.filter((c) => c.status === 'active').length} Active
+              </div>
+              <span className="text-[10px] text-slate-500 block">Bank transfer verification active</span>
+            </div>
+
+            <div className="p-4 bg-white rounded-xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-xs text-slate-500">Next Scheduled Payroll</span>
+              <div className="text-xl font-bold text-indigo-700 font-mono-numbers">
+                Oct 31, 2026
+              </div>
+              <span className="text-[10px] text-indigo-600 block">Monthly cycle automated preview</span>
+            </div>
+          </div>
+
+          {/* Compensation Records Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                  <Wallet className="w-5 h-5 text-emerald-600" />
+                  <span>Executive & Staff Salary Records</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Monthly remuneration schedule for key management personnel.
+                </p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-slate-200 text-slate-400 uppercase tracking-wider text-[11px]">
+                    <th className="pb-3 font-semibold">Staff Member</th>
+                    <th className="pb-3 font-semibold">Department</th>
+                    <th className="pb-3 font-semibold">Salary Amount</th>
+                    <th className="pb-3 font-semibold">Frequency</th>
+                    <th className="pb-3 font-semibold">Bank Destination</th>
+                    <th className="pb-3 font-semibold">Last Paid</th>
+                    <th className="pb-3 font-semibold text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {staffCompensation.map((comp) => (
+                    <tr key={comp.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3">
+                        <div className="font-bold text-slate-900">{comp.staffName}</div>
+                        <div className="text-[11px] text-slate-500">{comp.position}</div>
+                        <div className="text-[10px] text-slate-400 font-mono-numbers">{comp.staffEmail}</div>
+                      </td>
+                      <td className="py-3 text-slate-600">{comp.department}</td>
+                      <td className="py-3 font-bold font-mono-numbers text-slate-900 text-sm">
+                        ₦{comp.salaryNgn.toLocaleString()}
+                      </td>
+                      <td className="py-3 text-slate-600 capitalize">{comp.frequency}</td>
+                      <td className="py-3">
+                        <div className="font-medium text-slate-800">{comp.bankName || 'GTBank'}</div>
+                        <div className="text-[11px] text-slate-500 font-mono-numbers">{comp.accountNumber || '0000000000'}</div>
+                      </td>
+                      <td className="py-3 text-slate-600 font-mono-numbers">
+                        {comp.lastPaymentDate || 'Never'}
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          onClick={() => {
+                            setPayoutModalRecord(comp);
+                            setPayoutAmountNgn(comp.salaryNgn.toString());
+                            setPayoutReference(`SAL-${comp.staffName.toUpperCase().replace(/[^A-Z]/g, '')}-${new Date().toISOString().slice(0, 7)}`);
+                          }}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors shadow-xs"
+                        >
+                          Process Payout
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Past Payout Audit Trail */}
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-slate-600" />
+              <span>Staff Salary Disbursement History & Audit Trail</span>
+            </h3>
+
+            <div className="space-y-2">
+              {staffCompensation.flatMap((c) => c.paymentHistory.map((p) => ({ ...p, staffName: c.staffName, staffRole: c.position }))).map((pay) => (
+                <div
+                  key={pay.id}
+                  className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 font-mono-numbers">{pay.reference}</span>
+                      <span className="px-2 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
+                        DISBURSED
+                      </span>
+                    </div>
+                    <div className="text-slate-600">
+                      Recipient: <strong>{pay.staffName}</strong> ({pay.staffRole}) · Authorized by: {pay.approvedBy}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-slate-900 font-mono-numbers text-sm">
+                      ₦{pay.amountNgn.toLocaleString()}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-mono-numbers">{pay.date}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 7: Account Types & Registration Policies */}
+      {activeAdminTab === 'account_types' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Building className="w-5 h-5 text-slate-700" />
+                <span>Account Types & Access Policies</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Govern which roles are enabled on ASKIA MARKET, whether visitors can self-register, and whether merchant CAC verification is strictly enforced.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {accountTypes.map((act) => (
+                <div
+                  key={act.id}
+                  className="p-5 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between space-y-4 shadow-xs"
+                >
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between">
+                      <h4 className="font-bold text-slate-900 text-sm">{act.label}</h4>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        act.enabled ? 'bg-emerald-100 text-emerald-900' : 'bg-red-100 text-red-900'
+                      }`}>
+                        {act.enabled ? 'Active Role' : 'Disabled'}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      {act.description}
+                    </p>
+
+                    <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Self-Registration Allowed:</span>
+                        <button
+                          onClick={() => updateAccountTypeConfig(act.id, { allowsSelfRegistration: !act.allowsSelfRegistration })}
+                          className={`px-2.5 py-0.5 rounded text-[11px] font-bold ${
+                            act.allowsSelfRegistration
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {act.allowsSelfRegistration ? 'Public Allowed' : 'Invitation Only'}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-600 font-medium">Requires Admin Verification:</span>
+                        <button
+                          onClick={() => updateAccountTypeConfig(act.id, { requiresVerificationApproval: !act.requiresVerificationApproval })}
+                          className={`px-2.5 py-0.5 rounded text-[11px] font-bold ${
+                            act.requiresVerificationApproval
+                              ? 'bg-amber-600 text-white'
+                              : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {act.requiresVerificationApproval ? 'Enforced Review' : 'Instant Activation'}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="text-[11px] text-slate-500 pt-1">
+                      <strong className="text-slate-700">Capabilities:</strong> {act.permissionsSummary}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1402,6 +1853,32 @@ export const AdminPortal: React.FC = () => {
               </div>
 
               <div>
+                <label className="block font-semibold text-slate-700 mb-1">Job Title</label>
+                <input
+                  type="text"
+                  required
+                  value={newStaffJobTitle}
+                  onChange={(e) => setNewStaffJobTitle(e.target.value)}
+                  placeholder="e.g. Senior Escalations Specialist"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">Department</label>
+                <select
+                  value={newStaffDepartment}
+                  onChange={(e) => setNewStaffDepartment(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-indigo-500 bg-white"
+                >
+                  <option value="Operations & Strategy">Operations & Strategy</option>
+                  <option value="Trust & Safety">Trust & Safety</option>
+                  <option value="Treasury & Accounts">Treasury & Accounts</option>
+                  <option value="Growth & Merchant Acquisition">Growth & Merchant Acquisition</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="block font-semibold text-slate-700 mb-1">Select Admin Role</label>
                 <select
                   value={newStaffRole}
@@ -1426,12 +1903,228 @@ export const AdminPortal: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg shadow-sm"
+                  className="px-4 py-2 bg-black hover:bg-slate-900 text-[#D4AF37] border border-[#D4AF37]/50 font-bold rounded-lg shadow-sm"
                 >
-                  Authorize & Add Admin
+                  Authorize & Issue Invitation
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Application Review & Authorization Modal (Workflow B) */}
+      {reviewingApp && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">
+                  Founder Review: Staff Application
+                </h3>
+                <p className="text-[11px] text-[#917112] font-medium">
+                  Candidate: {reviewingApp.applicantName} ({reviewingApp.applicantEmail})
+                </p>
+              </div>
+              <button
+                onClick={() => setReviewingApp(null)}
+                className="text-slate-400 hover:text-slate-700 text-sm font-semibold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs space-y-2">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Applicant:</span>
+                <span className="font-bold text-slate-900">{reviewingApp.applicantName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Contact:</span>
+                <span className="font-mono-numbers text-slate-700">{reviewingApp.applicantPhone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Target Role:</span>
+                <span className="font-bold text-emerald-800">{reviewingApp.desiredPosition}</span>
+              </div>
+              <div className="pt-2 border-t border-slate-200">
+                <span className="text-slate-500 block mb-1">Qualifications Summary:</span>
+                <p className="text-slate-800 leading-relaxed bg-white p-2.5 rounded border border-slate-200 text-[11px]">
+                  {reviewingApp.experienceSummary}
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleReviewAppSubmit} className="space-y-3 text-xs">
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-1.5 font-bold cursor-pointer text-emerald-800">
+                  <input
+                    type="radio"
+                    name="reviewAction"
+                    value="approve"
+                    checked={reviewAction === 'approve'}
+                    onChange={() => setReviewAction('approve')}
+                    className="text-emerald-600"
+                  />
+                  <span>Approve & Onboard</span>
+                </label>
+                <label className="flex items-center gap-1.5 font-bold cursor-pointer text-red-700">
+                  <input
+                    type="radio"
+                    name="reviewAction"
+                    value="reject"
+                    checked={reviewAction === 'reject'}
+                    onChange={() => setReviewAction('reject')}
+                    className="text-red-600"
+                  />
+                  <span>Decline Application</span>
+                </label>
+              </div>
+
+              {reviewAction === 'approve' ? (
+                <div className="space-y-3 pt-1">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Assign Admin Role</label>
+                    <select
+                      value={assignedRoleForApp}
+                      onChange={(e) => setAssignedRoleForApp(e.target.value as AdminRole)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-emerald-500 bg-white"
+                    >
+                      <option value="verification_officer">Seller Verification & Compliance Officer</option>
+                      <option value="moderation_admin">Content Moderation Admin</option>
+                      <option value="growth_manager">Marketing & Growth Manager</option>
+                      <option value="finance_admin">Finance & Escrow Administrator</option>
+                      <option value="coo">Operations Associate (COO Branch)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Official Job Title</label>
+                    <input
+                      type="text"
+                      value={assignedTitleForApp}
+                      onChange={(e) => setAssignedTitleForApp(e.target.value)}
+                      placeholder={reviewingApp.desiredPosition}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-emerald-500"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="pt-1">
+                  <label className="block font-semibold text-slate-700 mb-1">Reason for Decline</label>
+                  <textarea
+                    rows={2}
+                    value={rejectionReasonText}
+                    onChange={(e) => setRejectionReasonText(e.target.value)}
+                    placeholder="Candidate does not meet requirements for this position..."
+                    className="w-full p-2.5 border border-slate-300 rounded-lg text-xs focus:outline-red-500"
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setReviewingApp(null)}
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={`px-4 py-2 font-bold text-xs rounded-lg transition-colors shadow-xs ${
+                    reviewAction === 'approve'
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-red-600 hover:bg-red-700 text-white'
+                  }`}
+                >
+                  {reviewAction === 'approve' ? 'Confirm Approval & Create Account' : 'Decline Application'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Staff Salary Payout Modal */}
+      {payoutModalRecord && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-emerald-600" />
+                <span>Process Salary Disbursement</span>
+              </h3>
+              <button
+                onClick={() => setPayoutModalRecord(null)}
+                className="text-slate-400 hover:text-slate-700 text-sm font-semibold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {payoutSuccessMsg ? (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-center space-y-2">
+                <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
+                <div className="font-bold text-emerald-900 text-xs">Payment Executed</div>
+                <p className="text-[11px] text-emerald-800">{payoutSuccessMsg}</p>
+              </div>
+            ) : (
+              <form onSubmit={handleProcessPayoutSubmit} className="space-y-3 text-xs">
+                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-1">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Staff Recipient:</span>
+                    <strong className="text-slate-900">{payoutModalRecord.staffName}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Role:</span>
+                    <span>{payoutModalRecord.position}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Bank:</span>
+                    <span>{payoutModalRecord.bankName} ({payoutModalRecord.accountNumber})</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Disbursement Amount (₦ NGN)</label>
+                  <input
+                    type="number"
+                    required
+                    value={payoutAmountNgn}
+                    onChange={(e) => setPayoutAmountNgn(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono-numbers focus:outline-emerald-500 font-bold text-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Treasury Audit Reference</label>
+                  <input
+                    type="text"
+                    required
+                    value={payoutReference}
+                    onChange={(e) => setPayoutReference(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs font-mono-numbers focus:outline-emerald-500"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setPayoutModalRecord(null)}
+                    className="px-4 py-2 border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg transition-colors shadow-xs"
+                  >
+                    Authorize & Disburse Salary
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

@@ -158,12 +158,26 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 <span className="text-xs text-slate-500 block">
                   {isProduct ? 'Verified Store Official Price' : ad?.isNegotiable ? 'Asking Price (Negotiable)' : 'Asking Price'}
                 </span>
-                <div className="text-2xl font-bold text-slate-950 font-mono-numbers mt-0.5">
-                  ₦{(isProduct ? product?.price : ad?.price)?.toLocaleString()}
-                </div>
+                {isProduct && product?.salePrice !== undefined && product?.salePrice !== null && product.salePrice > 0 ? (
+                  <div className="flex items-baseline gap-2 mt-0.5">
+                    <div className="text-2xl font-bold text-amber-700 font-mono-numbers">
+                      ₦{product.salePrice.toLocaleString()}
+                    </div>
+                    <div className="text-sm text-slate-400 line-through font-mono-numbers">
+                      ₦{product.price.toLocaleString()}
+                    </div>
+                    <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded">
+                      Promo Sale
+                    </span>
+                  </div>
+                ) : (
+                  <div className="text-2xl font-bold text-slate-950 font-mono-numbers mt-0.5">
+                    ₦{(isProduct ? product?.price : ad?.price)?.toLocaleString()}
+                  </div>
+                )}
                 {isProduct && (
                   <span className="text-[11px] text-emerald-700 font-medium mt-1 block">
-                    ✓ Verified Store Buyer Protection & Return Guarantee Included
+                    ✓ Verified Store Buyer Protection & Escrow Payout Included
                   </span>
                 )}
               </div>

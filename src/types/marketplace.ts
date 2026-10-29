@@ -1,6 +1,6 @@
-export type UserRole = 'buyer' | 'shop_owner' | 'advertiser' | 'admin';
+export type UserRole = 'buyer' | 'shop_owner' | 'advertiser' | 'admin' | 'staff';
 
-export type AccountType = 'shop_owner' | 'advertiser' | 'admin' | 'buyer';
+export type AccountType = 'shop_owner' | 'advertiser' | 'admin' | 'buyer' | 'staff';
 
 export type AdminRole = 
   | 'super_admin' 
@@ -8,7 +8,8 @@ export type AdminRole =
   | 'verification_officer' 
   | 'moderation_admin' 
   | 'finance_admin'
-  | 'growth_manager';
+  | 'growth_manager'
+  | 'custom';
 
 export type ShopStaffRole = 
   | 'owner' 
@@ -24,10 +25,16 @@ export interface UserAccount {
   phone: string;
   accountType: AccountType;
   adminRole?: AdminRole;
+  jobTitle?: string;
+  department?: string;
+  permissions?: string[];
   shopId?: string;
   shopStaffRole?: ShopStaffRole;
   createdAt: string;
   avatarUrl?: string;
+  isEmailVerified?: boolean;
+  wishlist?: string[]; // Product IDs saved to buyer wishlist
+  status?: 'active' | 'suspended' | 'pending_approval';
 }
 
 export interface AdminStaffMember {
@@ -35,10 +42,68 @@ export interface AdminStaffMember {
   name: string;
   email: string;
   role: AdminRole;
+  jobTitle: string;
+  department: string;
   assignedBy: string;
   permissions: string[];
   createdAt: string;
-  status: 'active' | 'inactive';
+  status: 'active' | 'inactive' | 'suspended';
+  lastActive?: string;
+}
+
+export interface StaffApplicationRequest {
+  id: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  desiredPosition: string;
+  department: string;
+  experienceSummary: string;
+  submittedAt: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedAt?: string;
+  reviewedBy?: string;
+  assignedRole?: AdminRole;
+  assignedPermissions?: string[];
+  rejectionReason?: string;
+}
+
+export interface StaffPaymentRecord {
+  id: string;
+  date: string;
+  amountNgn: number;
+  status: 'paid' | 'processing' | 'failed';
+  reference: string;
+  approvedBy: string;
+  notes?: string;
+}
+
+export interface StaffCompensationRecord {
+  id: string;
+  staffId: string;
+  staffName: string;
+  staffEmail: string;
+  position: string;
+  department: string;
+  salaryNgn: number;
+  frequency: 'monthly' | 'bi-weekly' | 'weekly';
+  paymentMethod: 'Bank Transfer' | 'Direct Escrow' | 'Corporate Cheque';
+  bankName?: string;
+  accountNumber?: string;
+  lastPaymentDate?: string;
+  nextScheduledPayment?: string;
+  status: 'active' | 'pending_approval' | 'on_hold';
+  paymentHistory: StaffPaymentRecord[];
+}
+
+export interface AccountTypeConfig {
+  id: AccountType;
+  label: string;
+  description: string;
+  enabled: boolean;
+  allowsSelfRegistration: boolean;
+  requiresVerificationApproval: boolean;
+  permissionsSummary: string;
 }
 
 export interface ShopStaffMember {
@@ -87,10 +152,12 @@ export interface Product {
   title: string;
   description: string;
   price: number; // in NGN (Naira)
+  salePrice?: number;
   category: string;
   condition: 'Brand New' | 'Open Box' | 'Refurbished';
   stock: number;
   imageUrl: string;
+  images?: string[];
   isFeatured: boolean;
   featuredUntil?: string;
   createdAt: string;

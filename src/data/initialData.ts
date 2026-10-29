@@ -9,20 +9,24 @@ import {
   UserAccount,
   AdminStaffMember,
   ShopStaffMember,
-  Order
+  Order,
+  StaffApplicationRequest,
+  StaffCompensationRecord,
+  AccountTypeConfig
 } from '../types/marketplace';
 
 export const INITIAL_USERS: UserAccount[] = [
   {
     id: 'usr-super-admin-askia',
-    name: 'Askia Market Executive',
+    name: 'Sensei Askia',
     email: 'askiasventures@gmail.com',
-    password: '0852,sudais',
     phone: '+234 800 000 0001',
     accountType: 'admin',
     adminRole: 'super_admin',
+    jobTitle: 'Founder & Super Administrator',
+    department: 'Executive Office',
     createdAt: '2026-01-01T00:00:00Z',
-    avatarUrl: ''
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
   },
   {
     id: 'usr-buyer-guest',
@@ -30,7 +34,8 @@ export const INITIAL_USERS: UserAccount[] = [
     email: 'buyer@lagos.ng',
     phone: '+234 801 234 5678',
     accountType: 'buyer',
-    createdAt: '2026-01-02T00:00:00Z'
+    createdAt: '2026-01-02T00:00:00Z',
+    wishlist: ['prod-1', 'prod-3']
   },
   {
     id: 'usr-owner-1',
@@ -55,53 +60,68 @@ export const INITIAL_USERS: UserAccount[] = [
 export const INITIAL_ADMIN_STAFF: AdminStaffMember[] = [
   {
     id: 'adm-super',
-    name: 'Askia Market Executive',
+    name: 'Sensei Askia',
     email: 'askiasventures@gmail.com',
     role: 'super_admin',
+    jobTitle: 'Founder & Super Administrator',
+    department: 'Executive Office',
     assignedBy: 'System Owner',
     permissions: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings', 'system_security'],
     createdAt: '2026-01-01',
-    status: 'active'
+    status: 'active',
+    lastActive: 'Just now'
   },
   {
     id: 'adm-coo',
     name: "Al'amin",
     email: 'alamin.coo@askiamarket.ng',
     role: 'coo',
+    jobTitle: 'Chief Operating Officer (COO)',
+    department: 'Operations & Strategy',
     assignedBy: 'Founder & Super Administrator',
     permissions: ['operations_oversight', 'approve_shops', 'approve_ads', 'escalations', 'audit_sellers', 'view_reports'],
     createdAt: '2026-01-05',
-    status: 'active'
+    status: 'active',
+    lastActive: '12 mins ago'
   },
   {
     id: 'adm-finance',
     name: 'Khadija',
     email: 'khadija.finance@askiamarket.ng',
     role: 'finance_admin',
+    jobTitle: 'Head of Finance & Escrow',
+    department: 'Treasury & Accounts',
     assignedBy: 'Founder & Super Administrator',
     permissions: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders', 'view_financial_analytics'],
     createdAt: '2026-01-08',
-    status: 'active'
+    status: 'active',
+    lastActive: '45 mins ago'
   },
   {
     id: 'adm-growth',
     name: 'Farhan',
     email: 'farhan.growth@askiamarket.ng',
     role: 'growth_manager',
+    jobTitle: 'Head of Marketing & Growth',
+    department: 'Growth & Merchant Acquisition',
     assignedBy: 'Founder & Super Administrator',
     permissions: ['approve_ads', 'flag_content', 'campaign_management', 'analytics', 'feature_promotions'],
     createdAt: '2026-01-10',
-    status: 'active'
+    status: 'active',
+    lastActive: '2 hours ago'
   },
   {
     id: 'adm-compliance',
     name: 'Aminu',
     email: 'aminu.compliance@askiamarket.ng',
     role: 'verification_officer',
+    jobTitle: 'Senior Seller Verification Officer',
+    department: 'Trust & Safety',
     assignedBy: 'Founder & Super Administrator',
     permissions: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers', 'kyc_document_review'],
     createdAt: '2026-01-12',
-    status: 'active'
+    status: 'active',
+    lastActive: '1 day ago'
   }
 ];
 
@@ -549,5 +569,184 @@ export const INITIAL_TRANSACTIONS: TransactionRecord[] = [
     createdAt: '2026-10-26T16:05:00Z',
     userEmail: 'contact@auratechglobal.ng',
     status: 'pending_approval' // Needs Admin Finance approval!
+  }
+];
+
+export const INITIAL_STAFF_APPLICATIONS: StaffApplicationRequest[] = [
+  {
+    id: 'app-001',
+    applicantName: 'Zainab Danjuma',
+    applicantEmail: 'zainab.danjuma@gmail.com',
+    applicantPhone: '+234 802 334 9911',
+    desiredPosition: 'Customer Experience & Merchant Support',
+    department: 'Operations & Strategy',
+    experienceSummary: '3+ years managing merchant onboarding and Tier-2 escalation resolution at Jumia Logistics Nigeria.',
+    submittedAt: '2026-10-27T10:15:00Z',
+    status: 'pending'
+  },
+  {
+    id: 'app-002',
+    applicantName: 'Emeka Umeh',
+    applicantEmail: 'emeka.umeh.risk@outlook.com',
+    applicantPhone: '+234 814 882 1044',
+    desiredPosition: 'KYC & Fraud Prevention Analyst',
+    department: 'Trust & Safety',
+    experienceSummary: 'Ex-Compliance associate at Moniepoint. Certified in CAC business verification and AML risk mitigation.',
+    submittedAt: '2026-10-28T14:30:00Z',
+    status: 'pending'
+  }
+];
+
+export const INITIAL_STAFF_COMPENSATION: StaffCompensationRecord[] = [
+  {
+    id: 'comp-alamin',
+    staffId: 'adm-coo',
+    staffName: "Al'amin",
+    staffEmail: 'alamin.coo@askiamarket.ng',
+    position: 'Chief Operating Officer (COO)',
+    department: 'Operations & Strategy',
+    salaryNgn: 750000,
+    frequency: 'monthly',
+    paymentMethod: 'Bank Transfer',
+    bankName: 'Guaranty Trust Bank (GTBank)',
+    accountNumber: '0234889102',
+    lastPaymentDate: '2026-09-30',
+    nextScheduledPayment: '2026-10-31',
+    status: 'active',
+    paymentHistory: [
+      {
+        id: 'pay-gtb-0926',
+        date: '2026-09-30',
+        amountNgn: 750000,
+        status: 'paid',
+        reference: 'SAL-ALAMIN-2026-09',
+        approvedBy: 'Sensei Askia (Founder)'
+      },
+      {
+        id: 'pay-gtb-0826',
+        date: '2026-08-31',
+        amountNgn: 750000,
+        status: 'paid',
+        reference: 'SAL-ALAMIN-2026-08',
+        approvedBy: 'Sensei Askia (Founder)'
+      }
+    ]
+  },
+  {
+    id: 'comp-khadija',
+    staffId: 'adm-finance',
+    staffName: 'Khadija',
+    staffEmail: 'khadija.finance@askiamarket.ng',
+    position: 'Head of Finance & Escrow',
+    department: 'Treasury & Accounts',
+    salaryNgn: 650000,
+    frequency: 'monthly',
+    paymentMethod: 'Bank Transfer',
+    bankName: 'Zenith Bank PLC',
+    accountNumber: '2109448810',
+    lastPaymentDate: '2026-09-30',
+    nextScheduledPayment: '2026-10-31',
+    status: 'active',
+    paymentHistory: [
+      {
+        id: 'pay-zen-0926',
+        date: '2026-09-30',
+        amountNgn: 650000,
+        status: 'paid',
+        reference: 'SAL-KHADIJA-2026-09',
+        approvedBy: 'Sensei Askia (Founder)'
+      }
+    ]
+  },
+  {
+    id: 'comp-farhan',
+    staffId: 'adm-growth',
+    staffName: 'Farhan',
+    staffEmail: 'farhan.growth@askiamarket.ng',
+    position: 'Head of Marketing & Growth',
+    department: 'Growth & Merchant Acquisition',
+    salaryNgn: 550000,
+    frequency: 'monthly',
+    paymentMethod: 'Bank Transfer',
+    bankName: 'Access Bank',
+    accountNumber: '0812994432',
+    lastPaymentDate: '2026-09-30',
+    nextScheduledPayment: '2026-10-31',
+    status: 'active',
+    paymentHistory: [
+      {
+        id: 'pay-acc-0926',
+        date: '2026-09-30',
+        amountNgn: 550000,
+        status: 'paid',
+        reference: 'SAL-FARHAN-2026-09',
+        approvedBy: 'Sensei Askia (Founder)'
+      }
+    ]
+  },
+  {
+    id: 'comp-aminu',
+    staffId: 'adm-compliance',
+    staffName: 'Aminu',
+    staffEmail: 'aminu.compliance@askiamarket.ng',
+    position: 'Senior Seller Verification Officer',
+    department: 'Trust & Safety',
+    salaryNgn: 480000,
+    frequency: 'monthly',
+    paymentMethod: 'Bank Transfer',
+    bankName: 'First Bank of Nigeria',
+    accountNumber: '3099112284',
+    lastPaymentDate: '2026-09-30',
+    nextScheduledPayment: '2026-10-31',
+    status: 'active',
+    paymentHistory: [
+      {
+        id: 'pay-fbn-0926',
+        date: '2026-09-30',
+        amountNgn: 480000,
+        status: 'paid',
+        reference: 'SAL-AMINU-2026-09',
+        approvedBy: 'Sensei Askia (Founder)'
+      }
+    ]
+  }
+];
+
+export const INITIAL_ACCOUNT_TYPES: AccountTypeConfig[] = [
+  {
+    id: 'buyer',
+    label: 'Customer / Buyer',
+    description: 'Browse verified shops, discover classified ads, chat with merchants, and place escrow-protected orders.',
+    enabled: true,
+    allowsSelfRegistration: true,
+    requiresVerificationApproval: false,
+    permissionsSummary: 'Order placement, buyer order tracking, direct seller chat, saved wishlist'
+  },
+  {
+    id: 'shop_owner',
+    label: 'Verified Shop Owner / Merchant',
+    description: 'Launch a branded digital storefront, list inventory, manage staff members, and receive escrow disbursements.',
+    enabled: true,
+    allowsSelfRegistration: true,
+    requiresVerificationApproval: true,
+    permissionsSummary: 'Storefront customization, product catalog, inventory sync, store staff management, payout requests'
+  },
+  {
+    id: 'advertiser',
+    label: 'Classified Advertiser',
+    description: 'Post verified classified ads across 6 key commercial categories with optional 7-day high-visibility boost.',
+    enabled: true,
+    allowsSelfRegistration: true,
+    requiresVerificationApproval: false,
+    permissionsSummary: 'Post classified listings, purchase 5-ad packages (₦1,000), boost listings (₦800), direct buyer messaging'
+  },
+  {
+    id: 'staff',
+    label: 'Operational Staff',
+    description: 'Internal platform team member assigned to operations, verification, compliance, or finance.',
+    enabled: true,
+    allowsSelfRegistration: false,
+    requiresVerificationApproval: true,
+    permissionsSummary: 'Founder invitation or approved staff application required. Granular departmental dashboard.'
   }
 ];

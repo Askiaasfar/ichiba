@@ -30,8 +30,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const { users, loginAsUser, loginSuperAdmin, registerUser } = useMarketplace();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   
-  // Registration Category: 'shop_owner' | 'advertiser'
-  const [accountCategory, setAccountCategory] = useState<'shop_owner' | 'advertiser'>('shop_owner');
+  // Registration Category: 'buyer' | 'shop_owner' | 'advertiser'
+  const [accountCategory, setAccountCategory] = useState<'buyer' | 'shop_owner' | 'advertiser'>('buyer');
   const [regStep, setRegStep] = useState<'pick_category' | 'fill_form'>('pick_category');
 
   // Login state
@@ -302,27 +302,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     ))}
                 </div>
 
-                {/* Private Super Admin Access Notice */}
-                <div className="mt-3 p-2.5 rounded-lg bg-indigo-50/60 border border-indigo-200/60 flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-2 text-indigo-950 font-medium">
-                    <Lock className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                    <span>Private Super Admin portal requires password.</span>
+                {/* Private Super Admin Access Link */}
+                <div className="mt-3 p-2.5 rounded-lg bg-black text-white border border-[#D4AF37]/40 flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-2 font-medium">
+                    <Shield className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
+                    <span>Founder & Executive Command Console</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      setLoginEmail('askiasventures@gmail.com');
-                      setLoginPassword('');
+                      onClose();
+                      window.location.search = '?tab=admin';
                     }}
-                    className="text-indigo-600 hover:text-indigo-800 font-bold underline"
+                    className="text-[#D4AF37] hover:underline font-bold"
                   >
-                    Fill Admin Email
+                    Executive Sign-In →
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            /* Registration Flow: Two Categories Required */
+            /* Registration Flow: Categories */
             <div className="space-y-4">
               {regStep === 'pick_category' ? (
                 <div className="space-y-4">
@@ -336,7 +336,42 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   </div>
 
                   <div className="grid grid-cols-1 gap-3">
-                    {/* Category 1: Shop Owner */}
+                    {/* Category 1: Buyer / Customer */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountCategory('buyer');
+                        setRegStep('fill_form');
+                      }}
+                      className={`p-4 rounded-xl border text-left transition-all flex items-start gap-3.5 ${
+                        accountCategory === 'buyer'
+                          ? 'border-[#D4AF37] bg-[#D4AF37]/5 ring-2 ring-[#D4AF37]/20'
+                          : 'border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="p-2.5 bg-black text-[#D4AF37] rounded-xl shrink-0 font-bold border border-[#D4AF37]/40">
+                        <User className="w-6 h-6" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm">
+                            1. Customer / Buyer Account
+                          </span>
+                          <span className="px-1.5 py-0.2 bg-[#D4AF37]/20 text-[#000000] text-[10px] font-bold rounded">
+                            Instant Access
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 leading-relaxed">
+                          For individual buyers. Browse verified merchant stores, chat with sellers, place escrow-guaranteed orders, and track deliveries.
+                        </p>
+                        <span className="text-[11px] font-semibold text-[#917112] flex items-center gap-1 pt-1">
+                          <span>Escrow protected shopping & wishlist</span>
+                          <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </div>
+                    </button>
+
+                    {/* Category 2: Shop Owner */}
                     <button
                       type="button"
                       onClick={() => {
@@ -355,7 +390,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-900 text-sm">
-                            1. Shop Owner Account
+                            2. Shop Owner Account
                           </span>
                           <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded">
                             Verified Badge
@@ -371,7 +406,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       </div>
                     </button>
 
-                    {/* Category 2: Classified Ads */}
+                    {/* Category 3: Classified Ads */}
                     <button
                       type="button"
                       onClick={() => {
@@ -390,7 +425,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-slate-900 text-sm">
-                            2. Classified Ads Account (Advertiser)
+                            3. Classified Ads Account (Advertiser)
                           </span>
                           <span className="px-1.5 py-0.2 bg-amber-100 text-amber-900 text-[10px] font-bold rounded">
                             ₦1,000 / 5 Ads
@@ -412,7 +447,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <span className="font-bold text-slate-900 text-xs">
-                      Category: {accountCategory === 'shop_owner' ? '🏬 Shop Owner Account' : '📢 Classified Ads Account'}
+                      Category: {accountCategory === 'shop_owner' ? '🏬 Shop Owner Account' : accountCategory === 'buyer' ? '👤 Customer / Buyer Account' : '📢 Classified Ads Account'}
                     </span>
                     <button
                       type="button"

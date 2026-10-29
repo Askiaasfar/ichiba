@@ -18,6 +18,7 @@ import {
   Truck,
   CreditCard
 } from 'lucide-react';
+import { MediaUpload } from './MediaUpload';
 
 interface ShopOwnerPortalProps {
   onOpenPaymentModal: (item: { type: 'feature_product'; id: string; title: string; price: number }) => void;
@@ -504,26 +505,35 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({ onOpenPaymentM
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">Select Preset Image</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: 'Laptop Studio', url: '/src/assets/images/product_tech_laptop_1793094444722.jpg' },
-                    { label: 'African Couture', url: '/src/assets/images/product_couture_fashion_1793094443759.jpg' },
-                    { label: 'Store Retail', url: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg' }
-                  ].map((img) => (
-                    <button
-                      type="button"
-                      key={img.url}
-                      onClick={() => setNewImageUrl(img.url)}
-                      className={`p-1 rounded-lg border text-left overflow-hidden ${
-                        newImageUrl === img.url ? 'border-emerald-600 ring-2 ring-emerald-500/20' : 'border-slate-200'
-                      }`}
-                    >
-                      <img src={img.url} alt={img.label} className="w-full h-14 object-cover rounded" referrerPolicy="no-referrer" />
-                      <span className="block text-[10px] text-slate-600 mt-1 truncate">{img.label}</span>
-                    </button>
-                  ))}
+              <div className="space-y-2">
+                <MediaUpload
+                  label="Product Photographs"
+                  hint="Upload high-res product photo (auto-compressed on device, max 1200px)"
+                  value={newImageUrl}
+                  onChange={(val) => setNewImageUrl(typeof val === 'string' ? val : val[0] || '')}
+                  aspectRatio="1:1"
+                />
+                <div>
+                  <span className="text-[11px] font-medium text-slate-500 block mb-1">Or select a luxury catalog preset:</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'Laptop Studio', url: '/src/assets/images/product_tech_laptop_1793094444722.jpg' },
+                      { label: 'African Couture', url: '/src/assets/images/product_couture_fashion_1793094443759.jpg' },
+                      { label: 'Store Retail', url: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg' }
+                    ].map((img) => (
+                      <button
+                        type="button"
+                        key={img.url}
+                        onClick={() => setNewImageUrl(img.url)}
+                        className={`p-1 rounded-lg border text-left overflow-hidden transition-all ${
+                          newImageUrl === img.url ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/30' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <img src={img.url} alt={img.label} className="w-full h-12 object-cover rounded" referrerPolicy="no-referrer" />
+                        <span className="block text-[10px] text-slate-600 mt-1 truncate">{img.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { MarketplaceProvider, useMarketplace } from './context/MarketplaceContext';
+import { CustomerPortal } from './components/CustomerPortal';
+import { StaffApplicationModal } from './components/StaffApplicationModal';
 import { RoleSwitcherBar } from './components/RoleSwitcherBar';
 import { Navbar } from './components/Navbar';
 import { MarketplaceHero } from './components/MarketplaceHero';
@@ -71,6 +73,23 @@ const MainMarketplaceApp: React.FC = () => {
     price: number;
   } | null>(null);
   const [showPostChooser, setShowPostChooser] = useState(false);
+  const [isStaffAppOpen, setIsStaffAppOpen] = useState(false);
+  const [showCustomerPortal, setShowCustomerPortal] = useState(false);
+  const [showDevSwitcher, setShowDevSwitcher] = useState(() => {
+    return typeof window !== 'undefined' && window.location.search.includes('dev=true');
+  });
+
+  // Ctrl+Shift+D keyboard toggle for developer switcher
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
+        e.preventDefault();
+        setShowDevSwitcher((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Sync URL search parameters for direct navigation or OAuth redirects
   React.useEffect(() => {
@@ -163,20 +182,66 @@ const MainMarketplaceApp: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8F9FA] text-[#1E293B]">
-      {/* 1. Top interactive role switcher for testing all user flows */}
-      <RoleSwitcherBar onOpenAuthModal={() => handleOpenAuth('login')} />
+      {/* 1. Developer Role Switcher (Hidden from normal public visitors; toggled via Ctrl+Shift+D or footer debug link) */}
+      {showDevSwitcher && (
+        <div className="relative border-b-2 border-amber-500">
+          <div className="bg-amber-400 text-black px-4 py-1 text-[11px] font-bold flex items-center justify-between">
+            <span>[DEV WORKSPACE SWITCHER ACTIVE — Press Ctrl+Shift+D to toggle]</span>
+            <button
+              onClick={() => setShowDevSwitcher(false)}
+              className="text-black hover:underline cursor-pointer"
+            >
+              Hide Switcher ✕
+            </button>
+          </div>
+          <RoleSwitcherBar onOpenAuthModal={() => handleOpenAuth('login')} />
+        </div>
+      )}
 
       {/* 2. Top Bar Navigation adhering strictly to the Top Bar Contract */}
       <Navbar
         activeTab={activeNavTab}
-        setActiveTab={setActiveNavTab}
+        setActiveTab={(tab) => {
+          setActiveNavTab(tab);
+          setShowCustomerPortal(false);
+        }}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenCreateModal={handleOpenCreateModal}
         onOpenAuthModal={() => handleOpenAuth('login')}
+        onOpenCustomerPortal={() => {
+          setShowCustomerPortal(true);
+          setActiveNavTab('marketplace');
+        }}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16">
+        {/* Customer Portal view for buyer role */}
+        {showCustomerPortal && currentRole === 'buyer' && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-semibold text-[#D4AF37] uppercase tracking-wide">
+                  Account Dashboard
+                </span>
+                <h1 className="text-2xl font-bold text-slate-900 font-serif-brand">
+                  My Orders & Saved Items
+                </h1>
+              </div>
+              <button
+                onClick={() => setShowCustomerPortal(false)}
+                className="text-xs text-slate-600 hover:text-black font-semibold underline cursor-pointer"
+              >
+                ← Back to Marketplace Feed
+              </button>
+            </div>
+            <CustomerPortal
+              onOpenCart={() => setIsCartOpen(true)}
+              onOpenProductModal={(prod) => setSelectedItem({ type: 'product', data: prod })}
+            />
+          </div>
+        )}
+
         {/* If in Shop Owner Role mode, display the Shop Owner Dashboard */}
         {currentRole === 'shop_owner' && activeNavTab === 'marketplace' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -540,6 +605,9 @@ const MainMarketplaceApp: React.FC = () => {
             <button onClick={() => setActiveNavTab('classifieds')} className="hover:text-[#D4AF37] transition-colors">
               Classified Ads
             </button>
+            <button onClick={() => setIsStaffAppOpen(true)} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+              Join Operating Team
+            </button>
             <button onClick={() => handleOpenAuth('login')} className="hover:text-white transition-colors font-medium">
               Account Sign In
             </button>
@@ -548,16 +616,28 @@ const MainMarketplaceApp: React.FC = () => {
                 setActiveNavTab('marketplace');
                 setCurrentRole('admin');
               }}
-              className="text-[#D4AF37]/80 hover:text-[#D4AF37] transition-colors flex items-center gap-1 font-mono text-[11px]"
+              className="text-[#D4AF37]/90 hover:text-[#D4AF37] transition-colors flex items-center gap-1 font-mono text-[11px]"
               title="Super Admin Private Console (Restricted to Askia Market Executives)"
             >
               <span>🔒 Executive Admin Portal</span>
+            </button>
+            <button
+              onClick={() => setShowDevSwitcher(!showDevSwitcher)}
+              className="text-slate-500 hover:text-slate-300 text-[10px] font-mono"
+              title="Toggle development workspace switcher (or press Ctrl+Shift+D)"
+            >
+              {showDevSwitcher ? '[Hide Dev Switcher]' : '[Dev Switcher]'}
             </button>
           </div>
         </div>
       </footer>
 
       {/* Modals & Overlays */}
+      <StaffApplicationModal
+        isOpen={isStaffAppOpen}
+        onClose={() => setIsStaffAppOpen(false)}
+      />
+
       <AuthModal
         isOpen={isAuthOpen}
         onClose={() => setIsAuthOpen(false)}

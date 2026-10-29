@@ -1,0 +1,716 @@
+# ASKIA MARKET — MASTER BUILD PLAN
+## Public Marketplace + Askia Ventures Features + Secure Authentication + Founder-Controlled Staff System
+
+You are continuing work on my existing ASKIA MARKET project in Google AI Studio.
+
+Brand: ASKIA MARKET  
+Tagline: Your World. Your Market.  
+Brand colors: #000000, #D4AF37, #0A0A0A, #F5F5F5  
+Design: Premium black-and-liquid-gold marketplace with polished responsive desktop and mobile layouts.
+
+My goal is to build a complete, trustworthy marketplace that preserves the useful Askia Ventures features while adding a secure public browsing experience, proper authentication, configurable account profiles, a founder-only Super Admin system, staff approval, role management and compensation records.
+
+**Do not rebuild from scratch. Do not delete existing functionality, destroy existing data, replace working payment integrations with mock implementations, or rewrite working components unnecessarily. Inspect the existing codebase first, then extend it safely.**
+
+The current project has previously included React, Vite, an Express backend, a database, MarketplaceContext.tsx, server.ts, SuperAdminLoginGate.tsx, AdminPortal.tsx, product listings, verified shops, classified advertisements and administrative tools. Inspect the actual current files and architecture before modifying them.
+
+My authorized founder account is configured through the server-side setting:
+
+SUPER_ADMIN_EMAIL=askiasventures@gmail.com
+
+Google OAuth and session environment variables have been entered into the configuration interface, but their availability in the active server runtime and the complete OAuth flow still need to be verified.
+
+---
+
+# PHASE 1 — FIX THE PUBLIC MARKETPLACE EXPERIENCE
+
+The current interface exposes a workspace selector similar to:
+
+- Active Workspace: Buyer View
+- Shop Owner Account
+- Classified Ads Account
+- Admin (Super Admin Only)
+- Customer (Buyer)
+- Reset
+
+The public website also contains navigation such as Marketplace, Verified Stores, Classified Ads, Safety & Policy, Customer, Ads and Post Listing.
+
+The workspace selector is useful for development, but it must not expose internal profiles or privileged dashboards to ordinary visitors in production.
+
+## Public visitor experience
+
+When someone searches for ASKIA MARKET on the internet and opens the website, they should immediately see a complete, attractive public marketplace.
+
+They should be able to:
+
+- Browse available products and listings.
+- Search by product name, keyword, brand or category.
+- Filter by category, location, price range and listing type where supported.
+- Explore verified stores and shop storefronts.
+- Explore classified advertisements.
+- View product photos, descriptions, prices, availability and seller information appropriate for public display.
+- View featured products, promoted listings and trending deals.
+- Read platform safety policies, classified-ad warnings, terms and privacy information.
+- Open public product and listing detail pages.
+- Share public listing links.
+- Browse on desktop or mobile without being forced to create an account first.
+
+Keep public product discovery open. Do not require login just to browse or search publicly available products.
+
+Only display real, active, published listings. Exclude draft, deleted, suspended, expired or inactive listings as appropriate.
+
+Do not present sample products, fake sellers, fabricated ratings or demo prices as genuine live marketplace data. If development fixtures must remain, identify them as demo data and prevent them from being mistaken for real production listings.
+
+## Public navigation
+
+Keep the public navigation focused on:
+
+- Home / Marketplace
+- Verified Stores
+- Classified Ads
+- Categories
+- Deals / Featured Listings where supported
+- Safety & Policy
+- Sign In
+- Register / Start Selling
+
+Do not display Admin Portal, Staff Portal, private financial tools, internal workspace controls or other restricted dashboards in the public navigation.
+
+The footer may include normal links to account sign-in and registration, but must not expose privileged administration features.
+
+## Development workspace selector
+
+If the current Active Workspace selector is necessary for development or QA, preserve it only in an appropriate development-only environment or an explicitly authorized private testing interface.
+
+Remove it from the public production interface.
+
+Never let a visitor select Admin, Staff, Seller or any other role through a workspace dropdown and thereby gain privileges.
+
+Changing a frontend view is not authentication and must never grant permissions.
+
+---
+
+# PHASE 2 — ONE NORMAL SIGN-IN AND REGISTRATION EXPERIENCE
+
+When someone clicks Sign In, Register, Start Selling, Post Listing or another action that requires an account, send them to the appropriate authentication flow.
+
+Create a polished ASKIA MARKET authentication page matching the black-and-gold design.
+
+Provide:
+
+- Continue with Google.
+- Sign in with email and password.
+- Create an account.
+- Email verification.
+- Forgot-password and secure password reset.
+- Logout and session expiry.
+- Clear errors and form validation.
+- Appropriate account-type selection during registration.
+- Secure account linking where a person uses more than one sign-in method.
+
+Do not make visitors select their role repeatedly at every login. Determine their actual authorized account and role from trusted server-side records.
+
+After sign-in, redirect the person to the correct dashboard.
+
+A person who enters the founder's email without authenticating must never receive Super Admin access.
+
+A Google account email, frontend variable, browser localStorage entry or URL parameter must never be accepted as sufficient proof of administrative authorization.
+
+---
+
+# PHASE 3 — CONFIGURABLE ACCOUNT PROFILES
+
+Create a proper account-type and profile-management system.
+
+The normal initial account types should be:
+
+1. Customer / Buyer.
+2. Shop Owner / Seller.
+3. Classified Advertiser.
+4. Staff Member — invitation or founder approval required.
+5. Founder / Super Admin — restricted to the authorized founder account.
+
+Keep these account types distinct where their permissions and workflows differ.
+
+## Customer / Buyer
+
+Customers should be able to:
+
+- Browse the public marketplace.
+- Save favorites and wishlist items.
+- Add products to the cart.
+- Complete checkout.
+- View their own orders and payment statuses.
+- Manage their own profile and delivery details.
+- Message sellers through supported messaging tools.
+- Receive relevant order notifications.
+- Review or report listings where supported.
+
+Prompt customers to sign in when an action requires an account, such as saving a wishlist or placing an order. Preserve their intended action and return them to it after successful sign-in.
+
+## Shop Owner / Seller
+
+Shop owners should be able to:
+
+- Register and create their seller profile.
+- Apply for merchant verification.
+- Create or manage a storefront.
+- Upload shop logos, banners and product photos.
+- Create, edit, publish, unpublish and delete their own authorized product listings.
+- Manage inventory, stock, pricing, sale prices and product specifications.
+- View their own orders and authorized customer information.
+- Manage fulfillment and order status where supported.
+- View authorized store analytics and transaction records.
+- Receive notifications and messages.
+
+Merchant verification must be a genuine approval process. Do not grant a verified badge simply because someone selects Shop Owner during registration.
+
+## Classified Advertiser
+
+Classified advertisers should be able to:
+
+- Register an individual advertiser profile.
+- Publish and manage classified listings.
+- Upload listing images.
+- Edit, renew or remove their own listings.
+- Track advertisement package usage and status.
+- Purchase supported advertising packages.
+- Receive buyer inquiries and respond through supported messaging tools.
+
+Preserve the configured classified package of ₦1,000 for five ads if that remains the existing business rule.
+
+Keep classified advertisements clearly distinguished from verified shop products. Display appropriate warnings that classified sellers and listings are not automatically verified merchants and that buyers should avoid unsafe upfront payments.
+
+## Configurable profile types
+
+The founder should be able to manage supported account types from the Super Admin dashboard.
+
+Where architecturally appropriate, provide the ability to:
+
+- Enable or disable optional account types.
+- Change account-type labels and descriptions.
+- Configure the onboarding workflow for each type.
+- Configure which profile types are available for new registrations.
+- Set account-type-specific permissions and approval requirements.
+- Retain existing users and records if an account type is disabled.
+- Prevent disabling essential system roles in a way that locks the founder out.
+
+Do not allow ordinary users or staff to create new privileged roles or modify their own authorization.
+
+Changes to account-type configuration must be validated and enforced by the backend.
+
+---
+
+# PHASE 4 — AUTOMATIC ROLE-BASED DASHBOARD ROUTING
+
+After successful authentication, the server must determine the account's actual role and account status, then route the user appropriately.
+
+Expected behavior:
+
+- Visitor: public marketplace.
+- Customer: customer dashboard.
+- Seller: seller dashboard.
+- Classified advertiser: classified dashboard.
+- Staff member: authorized staff dashboard.
+- Authorized founder: Super Admin Command Dashboard.
+- Pending staff applicant: pending-approval screen with no staff privileges.
+- Suspended or revoked account: appropriate access-denied or account-status screen.
+
+Preserve the user's intended destination when login is required, but re-check permissions before allowing access to that destination.
+
+An unauthorized person visiting an admin URL must not be able to see protected data or execute administrative actions.
+
+Do not rely on frontend route guards alone. Every protected backend endpoint must enforce authentication and the required permissions.
+
+---
+
+# PHASE 5 — FOUNDER-CONTROLLED STAFF ONBOARDING
+
+The staff system is particularly important.
+
+I want to control who becomes a member of the ASKIA MARKET team.
+
+A person must not become staff merely by registering, selecting a staff role or entering a staff email address.
+
+## Staff application and invitation
+
+Support two secure workflows:
+
+### Workflow A — Founder creates or invites staff
+
+1. I open the private Super Admin dashboard.
+2. I select Staff Management.
+3. I invite a person using their email address.
+4. I assign their job title, role and permissions.
+5. The person receives an invitation through a configured secure mechanism.
+6. They verify their email and establish their own account.
+7. The server activates only the permissions I authorized.
+
+### Workflow B — Someone requests staff access
+
+1. A person can submit a staff-access request if this feature is enabled.
+2. The request remains pending.
+3. They cannot enter the staff dashboard or use staff APIs.
+4. I review the application in the Super Admin dashboard.
+5. I may approve, reject or request further information.
+6. If approved, I explicitly assign a job title, role and permissions.
+7. Only then can the server activate their staff access.
+
+A pending staff applicant must not be treated as an active staff member.
+
+Never grant staff access based on a client-supplied role, email address or registration form.
+
+## Staff management capabilities
+
+The founder must be able to:
+
+- Add or invite staff.
+- Approve or reject staff applications.
+- Assign job titles and departments.
+- Assign predefined or custom roles.
+- Grant and revoke granular permissions.
+- Edit staff positions.
+- Suspend or reactivate staff.
+- Remove staff access.
+- Review active and pending staff.
+- View appropriate account activity and audit records.
+- Revoke sessions when staff access is suspended or removed.
+- Prevent staff from promoting themselves.
+- Prevent staff from changing founder permissions or assigning themselves Super Admin.
+- Prevent unauthorized users from editing the staff roster or granting privileges.
+
+The founder should be able to add new positions and remove obsolete positions without manually changing frontend code. Removing a role must not silently transfer its permissions to another role.
+
+Before removing a role that is still assigned to people, require a safe reassignment or revocation process.
+
+---
+
+# PHASE 6 — INITIAL STAFF POSITIONS AND PERMISSIONS
+
+Set up these initial positions if they are not already present:
+
+## Founder / Super Admin — Sensei Askia
+
+Full authorized platform control.
+
+Permissions include marketplace administration, staff management, role and permission assignment, platform configuration, financial oversight, security settings and approved founder-only operations.
+
+The founder must remain protected against accidental removal, unauthorized demotion or lockout.
+
+## Chief Operations Officer — Al’amin
+
+Operational oversight, workflow monitoring, operational reports and specifically authorized support functions.
+
+## Finance & Payments Manager — Khadija
+
+Authorized transaction monitoring, payment reconciliation, financial reports and only the refunds or payouts specifically granted by the founder.
+
+## Marketing & Growth Manager — Farhan
+
+Marketing campaigns, promotions, featured products, approved advertising tools and growth analytics.
+
+## Head of Seller Verification & Compliance — Aminu
+
+Seller verification, classified moderation, compliance workflows and approved review tools.
+
+These are initial job titles, not unrestricted security grants.
+
+The founder must be able to customize positions and individual permissions.
+
+Implement least privilege: a staff member should have only the access required for their job.
+
+High-risk operations, including financial transfers, refunds, payout approvals, staff privilege changes and security settings, require explicit permissions and appropriate audit records.
+
+Support custom staff roles and future team members without hardcoding the whole permission system into the UI.
+
+---
+
+# PHASE 7 — STAFF COMPENSATION AND PAYROLL RECORDS
+
+Include a separate, restricted Staff Compensation section if it can be implemented safely within the existing project.
+
+Support:
+
+- Compensation records.
+- Configurable salary or payment amounts.
+- Payment frequency and schedules.
+- Payment history.
+- Payment status.
+- Approved compensation changes.
+- Financial reports.
+- Relevant approval workflows.
+- Audit logs.
+
+Do not invent staff salaries or assume that assigning a job title automatically determines pay.
+
+Do not mix staff payroll with customer payments, seller payouts, refunds or affiliate commissions.
+
+Only authorized people should see compensation records. The founder must be able to control who may view, edit, approve or process them.
+
+Do not claim payroll execution exists unless a supported payment integration actually executes it. If only records and workflows can be completed, label them accurately and report any additional integration requirements.
+
+---
+
+# PHASE 8 — PRESERVE AND IMPROVE ASKIA VENTURES IMAGE UPLOADING
+
+Image uploading is an important part of the existing Askia Ventures functionality.
+
+Inspect the existing media-upload components and extend them rather than creating incompatible duplicate upload systems.
+
+Where present, reuse or improve the shared MediaUpload component and its integration with store creation, store editing, online store dashboards and product listings.
+
+## Product image management
+
+Allow authorized sellers to:
+
+- Upload product images from mobile or desktop.
+- Preview images before saving.
+- Replace images.
+- Remove images.
+- Reorder images where supported.
+- Upload multiple product images when supported.
+- See clear validation and upload errors.
+- Retry failed uploads.
+- Crop or resize images when appropriate.
+- Preserve the existing image and product data relationships.
+
+## Store image management
+
+Support shop logos, banners, store images and storefront customization.
+
+Preserve compatible existing fields such as logoUrl and imageUrl where they are already used by the project.
+
+Where appropriate, include:
+
+- Automatic image resizing and compression.
+- Image aspect-ratio guidance.
+- Crop and preview controls.
+- Upload progress and failure messages.
+- Mobile-friendly image selection.
+- File-type and file-size validation.
+- Safe image replacement without losing existing records.
+
+The current upload interface has previously shown a 5 MB limit while users had difficulty uploading larger images and had to resize them manually. Investigate the actual upload limit, server handling, storage method and frontend validation. Make image uploads reliable within the real limits of the selected storage system.
+
+Do not merely raise the frontend file-size limit if the server or storage provider cannot accept the larger file.
+
+Preserve the existing V1.2 compatibility for base64/data URL images where required. If introducing persistent object storage or migrating old images, preserve existing image references and provide a safe migration plan instead of breaking current listings.
+
+## Store customization
+
+Preserve existing store-builder capabilities and improve them where appropriate:
+
+- Store logo and banner management.
+- Storefront themes.
+- Store backgrounds, including paid options only where the existing business rules support them.
+- Mobile-friendly previews.
+- Product presentation and layout customization.
+- Consistent black-and-gold platform branding.
+
+Do not make paid backgrounds or premium features appear purchased when no verified payment or entitlement exists.
+
+---
+
+# PHASE 9 — PRODUCT CREATION, PRICING AND INVENTORY
+
+Provide a reliable product-management workflow.
+
+Product fields should include the fields supported by the existing model, with appropriate options for:
+
+- Product title.
+- Description.
+- Category.
+- Product images.
+- Price.
+- Optional sale price.
+- Stock and availability.
+- Brand and specifications.
+- Condition.
+- Seller and storefront association.
+- Location where relevant.
+- Publication and moderation status.
+
+Use server-side validation and seller-ownership checks.
+
+Sellers must not be able to edit or delete other sellers' products by changing a product ID.
+
+The backend must calculate product totals, discounts, shipping and checkout amounts using authoritative product and pricing records. Never trust client-supplied totals.
+
+Investigate known pricing risks, including cases where a missing sale price or discount value could be interpreted as zero and cause a product to enter checkout for ₦0.
+
+A missing sale price must not silently become a zero-price sale. Distinguish missing values from a legitimate zero where the business rules permit free items.
+
+Keep the public product price, seller dashboard price, cart price, order price and payment amount consistent.
+
+---
+
+# PHASE 10 — PAID PROMOTIONS AND MARKETPLACE BUSINESS RULES
+
+Preserve existing paid promotion capabilities and business settings where they remain configured.
+
+Previously discussed examples include:
+
+- Seven-day featured placement for verified products at ₦1,500.
+- Seven-day featured placement for classified advertisements at ₦800.
+- Classified advertising packages of ₦1,000 for five ads.
+- A 5% commission per sale for eligible verified corporate merchants.
+
+Inspect the current source of truth before using these figures. Do not silently change configured pricing or commission rules.
+
+If the current settings differ, preserve the authoritative existing configuration and report the difference.
+
+Implement or preserve:
+
+- Promotion purchase workflow.
+- Payment verification.
+- Promotion activation and expiry.
+- Placement status.
+- Package usage.
+- Commission calculation.
+- Seller payment records.
+- Appropriate admin review and reporting.
+
+Never mark a promotion as paid or active based only on a frontend message.
+
+---
+
+# PHASE 11 — MESSAGING, NOTIFICATIONS AND CUSTOMER EXPERIENCE
+
+Inspect the existing seller messaging and notification system.
+
+Preserve useful existing behavior, but clearly identify localStorage-only or simulated replies that are not backed by a real messaging service.
+
+Where supported, implement persistent messaging with proper access control so users can access only conversations they are authorized to see.
+
+Support relevant notifications for:
+
+- Order status changes.
+- Verified payment events.
+- Seller and buyer messages.
+- Listing approval or rejection.
+- Seller verification status.
+- Promotion status.
+- Staff invitations and approval decisions.
+- Security-sensitive account changes.
+
+Notifications must correspond to real events. Do not invent successful payments, completed orders or sent messages.
+
+Do not expose another user's private orders, contact information or conversations.
+
+---
+
+# PHASE 12 — GOOGLE OAUTH AND EMAIL/PASSWORD SECURITY
+
+Complete the existing authentication implementation without exposing credentials.
+
+Check these server-side variables:
+
+- GOOGLE_CLIENT_ID
+- GOOGLE_CLIENT_SECRET
+- GOOGLE_CALLBACK_URL
+- SUPER_ADMIN_EMAIL
+- SESSION_SECRET
+
+Verify that the active runtime can access all required values. Do not print them.
+
+Check the actual deployment hostname, OAuth client configuration and registered redirect URI.
+
+Implement genuine Google OAuth using a consistent, supported authentication flow. Verify identity on the server, including signature, issuer, audience, expiry and verified email.
+
+Validate OAuth state and use PKCE where applicable.
+
+Grant founder access only when the verified identity and authoritative account records authorize it.
+
+Use secure server-managed sessions, HttpOnly cookies, HTTPS, appropriate SameSite and CSRF protections, session expiry, session rotation and revocation.
+
+Use secure password hashing for email/password accounts.
+
+Remove the exposed hardcoded emergency administrator password login and any production backdoors. Do not create another hardcoded password fallback.
+
+Do not grant Super Admin access because a user entered the correct email address without proving ownership through the configured authentication method.
+
+Do not trust frontend state, localStorage, client-supplied role names or hidden navigation as authorization.
+
+---
+
+# PHASE 13 — ADMIN AND STAFF DASHBOARD PRIVACY
+
+Public visitors must not see internal dashboard links or privileged navigation.
+
+Customers must not see seller-management or administrative tools unless a specific feature is intentionally available to them.
+
+Sellers must see only their own shop-management functions and other explicitly authorized capabilities.
+
+Classified advertisers must see only their own advertisement-management functions and permitted tools.
+
+Staff must see only the dashboards, data and actions permitted by their assigned permissions.
+
+The founder must have access to the full authorized Super Admin Command Dashboard.
+
+Every protected backend route must enforce access independently.
+
+If an unauthorized user manually enters a private URL, the server must deny access without disclosing sensitive data.
+
+Do not rely on hiding the Admin button or Staff link as a security measure.
+
+---
+
+# PHASE 14 — PAYMENT AND DATA INTEGRITY
+
+Preserve the existing Paystack, Flutterwave and Stripe provider-selection architecture where it is currently implemented and configured.
+
+Do not assume every provider is active.
+
+- Verify payment status server-side.
+- Keep sandbox and production environments separate.
+- Validate transaction references and amounts.
+- Prevent duplicate payment processing.
+- Preserve idempotent verification behavior.
+- Record actual transaction status.
+- Trigger order notifications only after verified events.
+- Protect order privacy.
+- Enforce seller ownership and customer access restrictions.
+- Never fabricate refunds, payouts, delivery tracking or payment confirmation.
+
+Do not expose private payment keys in frontend code, browser logs, public API responses or generated reports.
+
+If provider credentials or external configuration are missing, identify the exact missing variable names without displaying any values.
+
+---
+
+# PHASE 15 — DATABASE, AUTHORIZATION AND AUDIT LOGGING
+
+Inspect the current database schema before adding or changing tables.
+
+Use safe migrations. Preserve existing users, products, shops, images, orders, advertisements, payment records and account relationships.
+
+Implement or verify appropriate persistent records for:
+
+- User identity.
+- Account type.
+- Seller and advertiser profiles.
+- Staff membership.
+- Job titles and departments.
+- Roles and permissions.
+- Staff invitations and approval status.
+- Session and account status where appropriate.
+- Audit events.
+- Compensation records if implemented.
+
+Use a clear, enforceable authorization model.
+
+Apply permission checks to every sensitive operation, including staff changes, seller verification, financial operations and platform settings.
+
+Record security-sensitive actions, including:
+
+- Staff invitation and approval.
+- Role and permission changes.
+- Staff suspension and removal.
+- Refund and payout approvals.
+- Payment-setting changes.
+- Sensitive platform configuration changes.
+
+Prevent ordinary staff from altering or erasing their own audit history.
+
+Do not allow a failed migration to silently erase existing data.
+
+---
+
+# PHASE 16 — TEST THE COMPLETE SYSTEM
+
+After inspecting and implementing the changes, run the available checks.
+
+## Public marketplace tests
+
+- Visitors can open the public home page.
+- Visitors can browse products and shops without signing in.
+- Search, categories and filters work.
+- Inactive and unpublished listings remain hidden.
+- Product details show accurate prices and availability.
+- Private dashboards and workspace selectors are absent from public production navigation.
+
+## Authentication tests
+
+- Google sign-in uses the genuine Google account selector.
+- Email/password sign-in verifies the actual credentials.
+- Registration and email verification work as configured.
+- Password reset uses the configured secure process.
+- The founder is routed to the Super Admin dashboard only after valid authentication and authorization.
+- Customers, sellers and classified advertisers reach the correct dashboards.
+- An unauthorized Google account cannot enter the Super Admin dashboard.
+- Session persistence, expiry and logout behave correctly.
+
+## Staff tests
+
+- New staff requests remain pending until approved.
+- A staff invitation works only for its intended authorized recipient.
+- The founder can assign and revoke permissions.
+- Staff cannot grant themselves higher privileges.
+- Suspended or removed staff cannot continue using privileged APIs.
+- Staff can access only the data and operations permitted by their roles.
+- Role removal and reassignment work without corrupting account records.
+
+## Marketplace tests
+
+- Product creation and editing work.
+- Seller ownership checks work.
+- Image upload, replacement and removal work within the actual storage limits.
+- Product pricing and sale pricing remain consistent.
+- Cart and checkout totals are server-calculated.
+- Classified advertising packages use the configured pricing and rules.
+- Featured promotions activate only after verified payment where payment is required.
+- Existing store-builder functionality is preserved.
+- Messaging and notifications reflect actual events.
+
+## Financial tests
+
+- Payment verification uses the actual provider integration.
+- Duplicate verification does not create duplicate payments or orders.
+- Sandbox and production settings remain separate.
+- Unauthorized staff cannot execute financial operations.
+- No fake successful payments or payouts are generated.
+
+## Build and deployment
+
+- Run the existing type checks.
+- Run the production build.
+- Run relevant automated tests.
+- Inspect browser and server errors where tooling permits.
+- Deploy only through the authorized existing workflow.
+- Confirm deployment success rather than assuming it.
+
+Do not claim genuine Google OAuth or end-to-end payment testing passed unless the actual tests ran successfully.
+
+If manual account selection or external provider access is required, report that step clearly.
+
+---
+
+# PHASE 17 — FINAL REPORT
+
+At the end, report:
+
+1. Features actually implemented.
+2. Existing Askia Ventures features preserved.
+3. Public navigation and authentication changes.
+4. Account profiles and automatic dashboard routing.
+5. Staff approval, management and permissions.
+6. Image upload and store-builder status.
+7. Payment and pricing status.
+8. Tests that actually passed.
+9. Tests that failed and their causes.
+10. Manual steps still required.
+11. Missing external configuration, if any.
+12. Remaining security concerns.
+13. Features that remain planned, incomplete or simulated.
+
+Never reveal environment-variable values, passwords, tokens, session secrets or private cookies in the report.
+
+## FINAL INSTRUCTION
+
+Build ASKIA MARKET as a public-first marketplace with normal authentication, configurable customer/seller/classified profiles, genuine Google sign-in, secure email/password login, correct dashboard routing, founder-approved staff access, customizable roles, and preserved Askia Ventures marketplace functionality.
+
+The public marketplace must be discoverable without an account. Private dashboards must require proper authentication and authorization. Staff must never obtain privileged access merely by registering.
+
+Preserve existing working code, database records, branding and payment integrations. Inspect before modifying, implement incrementally, test honestly and report the actual status.
+
+Begin with a codebase and runtime audit. Then prioritize public/private navigation, authentication and role-based routing, staff approval and permissions, media uploads, marketplace feature preservation, and end-to-end testing. Do not destroy or replace working functionality while doing so.

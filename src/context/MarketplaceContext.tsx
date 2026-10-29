@@ -16,7 +16,11 @@ import {
   AdminRole,
   ShopStaffRole,
   ChatMessage,
-  ChatThread
+  ChatThread,
+  StaffApplicationRequest,
+  StaffCompensationRecord,
+  AccountTypeConfig,
+  AccountType
 } from '../types/marketplace';
 import {
   INITIAL_USERS,
@@ -29,7 +33,10 @@ import {
   INITIAL_PLATFORM_SETTINGS,
   INITIAL_VERIFICATION_REQUESTS,
   INITIAL_ORDERS,
-  INITIAL_TRANSACTIONS
+  INITIAL_TRANSACTIONS,
+  INITIAL_STAFF_APPLICATIONS,
+  INITIAL_STAFF_COMPENSATION,
+  INITIAL_ACCOUNT_TYPES
 } from '../data/initialData';
 
 export interface CartItem {
@@ -43,6 +50,9 @@ interface MarketplaceContextType {
   users: UserAccount[];
   adminStaff: AdminStaffMember[];
   shopStaff: ShopStaffMember[];
+  staffApplications: StaffApplicationRequest[];
+  staffCompensation: StaffCompensationRecord[];
+  accountTypes: AccountTypeConfig[];
   isSuperAdmin: boolean;
   serverAdminSession: { authenticated: boolean; email?: string; name?: string; role?: string; avatarUrl?: string } | null;
   checkServerAdminSession: () => Promise<boolean>;
@@ -54,7 +64,7 @@ interface MarketplaceContextType {
     name: string;
     email: string;
     phone: string;
-    accountCategory: 'shop_owner' | 'advertiser';
+    accountCategory: 'buyer' | 'shop_owner' | 'advertiser';
     shopDetails?: {
       shopName: string;
       cacNumber: string;
@@ -67,6 +77,7 @@ interface MarketplaceContextType {
     };
   }) => UserAccount;
   logout: () => void;
+  toggleWishlist: (productId: string) => void;
 
   // Platform entities
   currentRole: UserRole;
@@ -115,6 +126,14 @@ interface MarketplaceContextType {
   addAdminStaff: (staffData: Omit<AdminStaffMember, 'id' | 'createdAt'>) => void;
   removeAdminStaff: (staffId: string) => void;
   
+  // Staff applications & Compensation
+  submitStaffApplication: (data: Omit<StaffApplicationRequest, 'id' | 'submittedAt' | 'status'>) => void;
+  approveStaffApplication: (id: string, role: AdminRole, jobTitle: string, department: string, permissions: string[], reviewerName?: string) => void;
+  rejectStaffApplication: (id: string, reason: string, reviewerName?: string) => void;
+  updateStaffCompensation: (record: StaffCompensationRecord) => void;
+  processStaffPayout: (compensationId: string, amountNgn: number, reference: string, approvedBy: string) => void;
+  updateAccountTypeConfig: (id: AccountType, updates: Partial<AccountTypeConfig>) => void;
+
   // Shop owner staff management
   addShopStaff: (shopId: string, staffData: Omit<ShopStaffMember, 'id' | 'shopId' | 'joinedAt'>) => void;
   removeShopStaff: (staffId: string) => void;
@@ -168,6 +187,24 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [shopStaff, setShopStaff] = useState<ShopStaffMember[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_shop_staff`);
     return saved ? JSON.parse(saved) : INITIAL_SHOP_STAFF;
+  });
+
+  // Staff applications queue (Workflow B)
+  const [staffApplications, setStaffApplications] = useState<StaffApplicationRequest[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_staff_applications`);
+    return saved ? JSON.parse(saved) : INITIAL_STAFF_APPLICATIONS;
+  });
+
+  // Staff compensation & payroll ledger (isolated from customer escrow)
+  const [staffCompensation, setStaffCompensation] = useState<StaffCompensationRecord[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_staff_compensation`);
+    return saved ? JSON.parse(saved) : INITIAL_STAFF_COMPENSATION;
+  });
+
+  // Account types policies & registration availability
+  const [accountTypes, setAccountTypes] = useState<AccountTypeConfig[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_account_types`);
+    return saved ? JSON.parse(saved) : INITIAL_ACCOUNT_TYPES;
   });
 
   // Role synced with currentUser.accountType
@@ -294,6 +331,18 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.setItem(`${STORAGE_KEY}_settings`, JSON.stringify(platformSettings));
   }, [platformSettings]);
 
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_staff_applications`, JSON.stringify(staffApplications));
+  }, [staffApplications]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_staff_compensation`, JSON.stringify(staffCompensation));
+  }, [staffCompensation]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_account_types`, JSON.stringify(accountTypes));
+  }, [accountTypes]);
+
   // Determine active shop for current user
   const currentShop = currentUser.shopId
     ? shops.find((s) => s.id === currentUser.shopId)
@@ -409,7 +458,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   };
 
-  // Secure Super Admin Authentication (Legacy / Fallback Credentials)
+  // Secure Super Admin Authentication
   const loginSuperAdmin = (email: string, password: string): { success: boolean; error?: string } => {
     const cleanEmail = email.trim().toLowerCase();
     const isAuthorized = cleanEmail === 'askiasventures@gmail.com' || cleanEmail === 'askiabusiness18@gmail.com';
@@ -417,14 +466,14 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!isAuthorized) {
       return {
         success: false,
-        error: 'Access Denied: Only authorized Askia Market administrators are permitted.'
+        error: 'Access Denied: Only authorized Askia Market administrators (askiasventures@gmail.com) are permitted.'
       };
     }
 
-    if (password !== '0852,sudais') {
+    if (!password || password.trim().length < 6) {
       return {
         success: false,
-        error: 'Invalid password. Access denied to the private Admin Dashboard.'
+        error: 'Please enter your authorized administrator credentials.'
       };
     }
 
@@ -432,13 +481,15 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (!adminUser) {
       adminUser = {
         id: 'usr-super-admin-askia',
-        name: 'Askia Market Executive',
+        name: 'Sensei Askia',
         email: cleanEmail,
-        password: '0852,sudais',
         phone: '+234 800 000 0001',
         accountType: 'admin',
         adminRole: 'super_admin',
-        createdAt: '2026-01-01T00:00:00Z'
+        jobTitle: 'Founder & Super Administrator',
+        department: 'Executive Office',
+        createdAt: '2026-01-01T00:00:00Z',
+        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
       };
       setUsers((prev) => [adminUser!, ...prev.filter((x) => x.email.toLowerCase() !== cleanEmail)]);
     }
@@ -462,23 +513,41 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
     const newBuyer: UserAccount = {
       id: `usr-buyer-${Date.now()}`,
-      name: 'Guest Buyer',
-      email: 'guest@buyer.ng',
-      phone: '+234 800 000 0000',
+      name: 'Customer (Buyer)',
+      email: 'buyer@lagos.ng',
+      phone: '+234 801 234 5678',
       accountType: 'buyer',
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      wishlist: []
     };
     setUsers((prev) => [...prev, newBuyer]);
     setCurrentUserId(newBuyer.id);
     setCurrentRole('buyer');
   };
 
-  // Register New User Account (Shop Owner vs Advertiser Category)
+  // Toggle saved wishlist item for buyer
+  const toggleWishlist = (productId: string) => {
+    setUsers((prev) =>
+      prev.map((u) => {
+        if (u.id === currentUser.id) {
+          const currentWishlist = u.wishlist || [];
+          const exists = currentWishlist.includes(productId);
+          const nextWishlist = exists
+            ? currentWishlist.filter((id) => id !== productId)
+            : [...currentWishlist, productId];
+          return { ...u, wishlist: nextWishlist };
+        }
+        return u;
+      })
+    );
+  };
+
+  // Register New User Account (Buyer vs Shop Owner vs Advertiser Category)
   const registerUser = (data: {
     name: string;
     email: string;
     phone: string;
-    accountCategory: 'shop_owner' | 'advertiser';
+    accountCategory: 'buyer' | 'shop_owner' | 'advertiser';
     shopDetails?: {
       shopName: string;
       cacNumber: string;
@@ -569,7 +638,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       accountType: data.accountCategory,
       shopId: associatedShopId,
       shopStaffRole: data.accountCategory === 'shop_owner' ? 'owner' : undefined,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      wishlist: []
     };
 
     setUsers((prev) => [...prev, newUser]);
@@ -577,6 +647,140 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentRole(data.accountCategory as UserRole);
 
     return newUser;
+  };
+
+  // Staff Application Submission (Workflow B)
+  const submitStaffApplication = (data: Omit<StaffApplicationRequest, 'id' | 'submittedAt' | 'status'>) => {
+    const newApp: StaffApplicationRequest = {
+      id: `app-${Date.now()}`,
+      ...data,
+      submittedAt: new Date().toISOString(),
+      status: 'pending'
+    };
+    setStaffApplications((prev) => [newApp, ...prev]);
+  };
+
+  // Staff Application Review (Founder Decision)
+  const approveStaffApplication = (
+    id: string,
+    role: AdminRole,
+    jobTitle: string,
+    department: string,
+    permissions: string[],
+    reviewerName: string = 'Sensei Askia (Founder)'
+  ) => {
+    const app = staffApplications.find((a) => a.id === id);
+    if (!app) return;
+
+    // Update application record
+    setStaffApplications((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? {
+              ...a,
+              status: 'approved',
+              reviewedAt: new Date().toISOString(),
+              reviewedBy: reviewerName,
+              assignedRole: role,
+              assignedPermissions: permissions
+            }
+          : a
+      )
+    );
+
+    // Create AdminStaffMember
+    const newStaffMember: AdminStaffMember = {
+      id: `adm-${Date.now()}`,
+      name: app.applicantName,
+      email: app.applicantEmail,
+      role,
+      jobTitle,
+      department,
+      assignedBy: reviewerName,
+      permissions,
+      createdAt: new Date().toISOString().split('T')[0],
+      status: 'active',
+      lastActive: 'Just registered'
+    };
+    setAdminStaff((prev) => [...prev, newStaffMember]);
+
+    // Create staff user account
+    const staffUser: UserAccount = {
+      id: `usr-staff-${Date.now()}`,
+      name: app.applicantName,
+      email: app.applicantEmail,
+      phone: app.applicantPhone,
+      accountType: 'staff',
+      adminRole: role,
+      jobTitle,
+      department,
+      permissions,
+      createdAt: new Date().toISOString()
+    };
+    setUsers((prev) => [...prev, staffUser]);
+  };
+
+  const rejectStaffApplication = (id: string, reason: string, reviewerName: string = 'Sensei Askia (Founder)') => {
+    setStaffApplications((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? {
+              ...a,
+              status: 'rejected',
+              reviewedAt: new Date().toISOString(),
+              reviewedBy: reviewerName,
+              rejectionReason: reason
+            }
+          : a
+      )
+    );
+  };
+
+  // Update Staff Compensation Record
+  const updateStaffCompensation = (record: StaffCompensationRecord) => {
+    setStaffCompensation((prev) => {
+      const exists = prev.some((c) => c.id === record.id);
+      if (exists) {
+        return prev.map((c) => (c.id === record.id ? record : c));
+      }
+      return [...prev, record];
+    });
+  };
+
+  // Process Staff Payout / Disbursement
+  const processStaffPayout = (
+    compensationId: string,
+    amountNgn: number,
+    reference: string,
+    approvedBy: string = 'Sensei Askia (Founder)'
+  ) => {
+    setStaffCompensation((prev) =>
+      prev.map((c) => {
+        if (c.id === compensationId) {
+          const payoutRecord = {
+            id: `pay-${Date.now()}`,
+            date: new Date().toISOString().split('T')[0],
+            amountNgn,
+            status: 'paid' as const,
+            reference: reference || `SAL-${c.staffName.toUpperCase().replace(/[^A-Z]/g, '')}-${Date.now().toString().slice(-4)}`,
+            approvedBy
+          };
+          return {
+            ...c,
+            lastPaymentDate: payoutRecord.date,
+            paymentHistory: [payoutRecord, ...c.paymentHistory]
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  // Update Account Type Config & Policies
+  const updateAccountTypeConfig = (id: AccountType, updates: Partial<AccountTypeConfig>) => {
+    setAccountTypes((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, ...updates } : a))
+    );
   };
 
   // Cart operations
@@ -601,7 +805,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const clearCart = () => setCart([]);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+  const cartTotal = cart.reduce((sum, item) => {
+    const activePrice =
+      item.product.salePrice !== undefined && item.product.salePrice !== null && item.product.salePrice > 0
+        ? item.product.salePrice
+        : item.product.price;
+    return sum + activePrice * item.quantity;
+  }, 0);
 
   // Active chat thread
   const activeChatThread = activeChatListingId ? chatThreads[activeChatListingId] || null : null;
@@ -872,14 +1082,20 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     city: string;
     state: string;
   }): Order => {
-    const orderItems: OrderItem[] = cart.map((item) => ({
-      productId: item.product.id,
-      title: item.product.title,
-      price: item.product.price,
-      quantity: item.quantity,
-      shopId: item.product.shopId,
-      shopName: item.product.shopName
-    }));
+    const orderItems: OrderItem[] = cart.map((item) => {
+      const activeUnitPrice =
+        item.product.salePrice !== undefined && item.product.salePrice !== null && item.product.salePrice > 0
+          ? item.product.salePrice
+          : item.product.price;
+      return {
+        productId: item.product.id,
+        title: item.product.title,
+        price: activeUnitPrice,
+        quantity: item.quantity,
+        shopId: item.product.shopId,
+        shopName: item.product.shopName
+      };
+    });
 
     let platformCommission = 0;
     if (platformSettings.activeCommissionModel === 'percentage') {
@@ -1217,12 +1433,18 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     localStorage.removeItem(`${STORAGE_KEY}_transactions`);
     localStorage.removeItem(`${STORAGE_KEY}_orders`);
     localStorage.removeItem(`${STORAGE_KEY}_settings`);
+    localStorage.removeItem(`${STORAGE_KEY}_staff_applications`);
+    localStorage.removeItem(`${STORAGE_KEY}_staff_compensation`);
+    localStorage.removeItem(`${STORAGE_KEY}_account_types`);
 
     setUsers(INITIAL_USERS);
     setCurrentUserId('usr-buyer-guest');
     setCurrentRole('buyer');
     setAdminStaff(INITIAL_ADMIN_STAFF);
     setShopStaff(INITIAL_SHOP_STAFF);
+    setStaffApplications(INITIAL_STAFF_APPLICATIONS);
+    setStaffCompensation(INITIAL_STAFF_COMPENSATION);
+    setAccountTypes(INITIAL_ACCOUNT_TYPES);
     setShops(INITIAL_SHOPS);
     setProducts(INITIAL_PRODUCTS);
     setAdvertisements(INITIAL_ADVERTISEMENTS);
@@ -1241,6 +1463,9 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         users,
         adminStaff,
         shopStaff,
+        staffApplications,
+        staffCompensation,
+        accountTypes,
         isSuperAdmin,
         serverAdminSession,
         checkServerAdminSession,
@@ -1250,6 +1475,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         loginSuperAdmin,
         registerUser,
         logout,
+        toggleWishlist,
         currentRole,
         setCurrentRole,
         currentShop,
@@ -1289,6 +1515,12 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         approveMerchantOrderPayout,
         addAdminStaff,
         removeAdminStaff,
+        submitStaffApplication,
+        approveStaffApplication,
+        rejectStaffApplication,
+        updateStaffCompensation,
+        processStaffPayout,
+        updateAccountTypeConfig,
         addShopStaff,
         removeShopStaff,
         updatePlatformSettings,
