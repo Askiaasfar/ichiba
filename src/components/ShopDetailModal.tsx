@@ -3,6 +3,7 @@ import { Shop, Product } from '../types/marketplace';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { X, ShieldCheck, MapPin, Phone, Mail, Star, PackageCheck } from 'lucide-react';
 import { ListingCard } from './ListingCard';
+import { normalizeImageUrl, handleImageError, DEFAULT_FALLBACK_IMAGE } from '../utils/imageUtils';
 
 interface ShopDetailModalProps {
   shopId: string | null;
@@ -37,9 +38,10 @@ export const ShopDetailModal: React.FC<ShopDetailModalProps> = ({
         {/* Store Banner */}
         <div className="relative h-44 sm:h-52 bg-slate-900 overflow-hidden shrink-0">
           <img
-            src={shop.bannerUrl}
+            src={normalizeImageUrl(shop.bannerUrl, DEFAULT_FALLBACK_IMAGE)}
             alt={shop.name}
             className="w-full h-full object-cover opacity-60"
+            onError={(e) => handleImageError(e, DEFAULT_FALLBACK_IMAGE)}
             referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />

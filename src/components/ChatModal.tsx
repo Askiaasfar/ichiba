@@ -10,6 +10,7 @@ import {
   Sparkles,
   CheckCheck
 } from 'lucide-react';
+import { normalizeImageUrl, handleImageError, DEFAULT_FALLBACK_IMAGE } from '../utils/imageUtils';
 
 export const ChatModal: React.FC = () => {
   const { activeChatThread, closeChat, sendChatMessage, currentUser } = useMarketplace();
@@ -96,9 +97,10 @@ export const ChatModal: React.FC = () => {
         <div className="px-4 py-2.5 bg-slate-100/70 border-b border-slate-200/80 flex items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-2.5 min-w-0">
             <img
-              src={activeChatThread.listingImageUrl}
+              src={normalizeImageUrl(activeChatThread.listingImageUrl, DEFAULT_FALLBACK_IMAGE)}
               alt={activeChatThread.listingTitle}
               className="w-10 h-10 rounded-lg object-cover bg-slate-200 border border-slate-300 shrink-0"
+              onError={(e) => handleImageError(e, DEFAULT_FALLBACK_IMAGE)}
               referrerPolicy="no-referrer"
             />
             <div className="min-w-0">

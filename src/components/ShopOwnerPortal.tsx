@@ -19,6 +19,7 @@ import {
   CreditCard
 } from 'lucide-react';
 import { MediaUpload } from './MediaUpload';
+import { normalizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
 
 interface ShopOwnerPortalProps {
   onOpenPaymentModal: (item: { type: 'feature_product'; id: string; title: string; price: number }) => void;
@@ -47,7 +48,7 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({ onOpenPaymentM
   const [newCondition, setNewCondition] = useState<'Brand New' | 'Open Box' | 'Refurbished'>('Brand New');
   const [newStock, setNewStock] = useState('5');
   const [newDescription, setNewDescription] = useState('');
-  const [newImageUrl, setNewImageUrl] = useState('/src/assets/images/product_tech_laptop_1793094444722.jpg');
+  const [newImageUrl, setNewImageUrl] = useState('/assets/images/product_tech_laptop_1793094444722.jpg');
   const [specCpu, setSpecCpu] = useState('Flagship Tier Processor');
   const [specWarranty, setSpecWarranty] = useState('12 Months Replacement Warranty');
 
@@ -255,9 +256,10 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({ onOpenPaymentM
                     <td className="py-3.5 pr-4">
                       <div className="flex items-center gap-3">
                         <img
-                          src={p.imageUrl}
+                          src={normalizeImageUrl(p.imageUrl, FALLBACK_PRODUCT_IMAGE)}
                           alt={p.title}
                           className="w-10 h-10 rounded-lg object-cover bg-slate-100 border border-slate-200 shrink-0"
+                          onError={(e) => handleImageError(e, FALLBACK_PRODUCT_IMAGE)}
                           referrerPolicy="no-referrer"
                         />
                         <div>
@@ -517,9 +519,9 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({ onOpenPaymentM
                   <span className="text-[11px] font-medium text-slate-500 block mb-1">Or select a luxury catalog preset:</span>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { label: 'Laptop Studio', url: '/src/assets/images/product_tech_laptop_1793094444722.jpg' },
-                      { label: 'African Couture', url: '/src/assets/images/product_couture_fashion_1793094443759.jpg' },
-                      { label: 'Store Retail', url: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg' }
+                      { label: 'Laptop Studio', url: '/assets/images/product_tech_laptop_1793094444722.jpg' },
+                      { label: 'African Couture', url: '/assets/images/product_couture_fashion_1793094443759.jpg' },
+                      { label: 'Store Retail', url: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg' }
                     ].map((img) => (
                       <button
                         type="button"

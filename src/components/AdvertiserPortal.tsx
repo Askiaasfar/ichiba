@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { CautionNoticeBanner } from './CautionNoticeBanner';
 import { MediaUpload } from './MediaUpload';
+import { normalizeImageUrl, handleImageError, FALLBACK_VEHICLE_IMAGE } from '../utils/imageUtils';
 
 interface AdvertiserPortalProps {
   onOpenPaymentModal: (item: {
@@ -48,7 +49,7 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('+234 803 881 2290');
   const [advertiserName, setAdvertiserName] = useState('Chinedu Okafor');
-  const [imageUrl, setImageUrl] = useState('/src/assets/images/ad_toyota_vehicle_1793094444379.jpg');
+  const [imageUrl, setImageUrl] = useState('/assets/images/ad_toyota_vehicle_1793094444379.jpg');
 
   const myAds = advertisements.filter(
     (a) => a.advertiserId === 'adv-current-user' || a.advertiserName === 'Chinedu Okafor'
@@ -249,9 +250,10 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
               >
                 <div className="flex gap-3">
                   <img
-                    src={ad.imageUrl}
+                    src={normalizeImageUrl(ad.imageUrl, FALLBACK_VEHICLE_IMAGE)}
                     alt={ad.title}
                     className="w-20 h-20 rounded-lg object-cover bg-slate-200 shrink-0"
+                    onError={(e) => handleImageError(e, FALLBACK_VEHICLE_IMAGE)}
                     referrerPolicy="no-referrer"
                   />
                   <div className="space-y-1">
@@ -443,9 +445,9 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
                   <span className="text-[11px] font-medium text-slate-500 block mb-1">Or select a standard classified preset:</span>
                   <div className="grid grid-cols-3 gap-2">
                     {[
-                      { label: 'Toyota Sedan Car', url: '/src/assets/images/ad_toyota_vehicle_1793094444379.jpg' },
-                      { label: 'Electronics Gadget', url: '/src/assets/images/product_tech_laptop_1793094444722.jpg' },
-                      { label: 'Equipment / Property', url: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg' }
+                      { label: 'Toyota Sedan Car', url: '/assets/images/ad_toyota_vehicle_1793094444379.jpg' },
+                      { label: 'Electronics Gadget', url: '/assets/images/product_tech_laptop_1793094444722.jpg' },
+                      { label: 'Equipment / Property', url: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg' }
                     ].map((img) => (
                       <button
                         type="button"

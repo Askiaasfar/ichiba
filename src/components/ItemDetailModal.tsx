@@ -15,6 +15,7 @@ import {
   Share2
 } from 'lucide-react';
 import { CautionNoticeBanner } from './CautionNoticeBanner';
+import { normalizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE, FALLBACK_VEHICLE_IMAGE } from '../utils/imageUtils';
 
 type ListingItem = 
   | { type: 'product'; data: Product }
@@ -101,9 +102,15 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             <div className="space-y-3">
               <div className="relative rounded-xl overflow-hidden bg-slate-100 border border-slate-200 aspect-4/3">
                 <img
-                  src={isProduct ? product?.imageUrl : ad?.imageUrl}
+                  src={normalizeImageUrl(
+                    isProduct ? product?.imageUrl : ad?.imageUrl,
+                    isProduct ? FALLBACK_PRODUCT_IMAGE : FALLBACK_VEHICLE_IMAGE
+                  )}
                   alt={isProduct ? product?.title : ad?.title}
                   className="w-full h-full object-cover"
+                  onError={(e) =>
+                    handleImageError(e, isProduct ? FALLBACK_PRODUCT_IMAGE : FALLBACK_VEHICLE_IMAGE)
+                  }
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute bottom-2 left-2 px-2.5 py-1 bg-slate-900/80 backdrop-blur-xs text-white text-xs font-medium rounded-md">

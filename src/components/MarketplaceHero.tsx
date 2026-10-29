@@ -1,5 +1,6 @@
 import React from 'react';
 import { ShieldCheck, Megaphone, Sparkles, Award, ArrowUpRight } from 'lucide-react';
+import { handleImageError } from '../utils/imageUtils';
 
 interface MarketplaceHeroProps {
   onSelectFilter: (type: 'all' | 'verified' | 'advertisement' | 'featured') => void;
@@ -79,9 +80,10 @@ export const MarketplaceHero: React.FC<MarketplaceHeroProps> = ({
           <div className="lg:col-span-5 relative">
             <div className="relative rounded-2xl overflow-hidden border border-[#D4AF37]/30 shadow-2xl bg-black aspect-16/10 sm:aspect-16/10 group">
               <img
-                src="/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg"
+                src="/assets/images/hero_marketplace_nigeria_1793094442016.jpg"
                 alt="ASKIA MARKET verified physical and digital marketplace"
                 className="w-full h-full object-cover opacity-85 group-hover:scale-103 transition-transform duration-500"
+                onError={handleImageError}
                 referrerPolicy="no-referrer"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex items-end p-5">

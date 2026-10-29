@@ -18,6 +18,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { Product } from '../types/marketplace';
+import { normalizeImageUrl, handleImageError } from '../utils/imageUtils';
 
 interface CustomerPortalProps {
   onOpenProductModal?: (product: Product) => void;
@@ -288,9 +289,10 @@ export const CustomerPortal: React.FC<CustomerPortalProps> = ({
                     <div>
                       <div className="relative rounded-lg overflow-hidden h-40 bg-slate-100 mb-3">
                         <img
-                          src={prod.imageUrl || (prod.images && prod.images[0]) || '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg'}
+                          src={normalizeImageUrl(prod.imageUrl || (prod.images && prod.images[0]))}
                           alt={prod.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          onError={handleImageError}
                         />
                         <button
                           onClick={() => toggleWishlist(prod.id)}

@@ -2,6 +2,7 @@ import React from 'react';
 import { Product, Advertisement } from '../types/marketplace';
 import { ShieldCheck, AlertTriangle, Sparkles, MapPin, ShoppingBag, MessageCircle, Heart } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
+import { normalizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE, FALLBACK_VEHICLE_IMAGE } from '../utils/imageUtils';
 
 type ListingItem = 
   | { type: 'product'; data: Product }
@@ -33,9 +34,10 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
         {/* Product Image */}
         <div className="relative aspect-4/3 bg-slate-100 overflow-hidden">
           <img
-            src={product.imageUrl}
+            src={normalizeImageUrl(product.imageUrl, FALLBACK_PRODUCT_IMAGE)}
             alt={product.title}
             className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
+            onError={(e) => handleImageError(e, FALLBACK_PRODUCT_IMAGE)}
             referrerPolicy="no-referrer"
           />
           <div className="absolute bottom-2 right-2 bg-black/80 backdrop-blur-xs text-white text-[10px] font-medium px-2 py-0.5 rounded tracking-wide">
@@ -152,9 +154,10 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
       {/* Classified Image */}
       <div className="relative aspect-4/3 bg-slate-100 overflow-hidden">
         <img
-          src={ad.imageUrl}
+          src={normalizeImageUrl(ad.imageUrl, FALLBACK_VEHICLE_IMAGE)}
           alt={ad.title}
           className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
+          onError={(e) => handleImageError(e, FALLBACK_VEHICLE_IMAGE)}
           referrerPolicy="no-referrer"
         />
         <div className="absolute bottom-2 right-2 bg-amber-950/80 backdrop-blur-xs text-amber-200 text-[10px] font-medium px-2 py-0.5 rounded tracking-wide">

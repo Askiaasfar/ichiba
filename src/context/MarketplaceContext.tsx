@@ -207,27 +207,37 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return saved ? JSON.parse(saved) : INITIAL_ACCOUNT_TYPES;
   });
 
+  const normalizeSavedJson = <T,>(savedStr: string | null, fallback: T): T => {
+    if (!savedStr) return fallback;
+    try {
+      const cleaned = savedStr.replace(/\/src\/assets\/images\//g, '/assets/images/');
+      return JSON.parse(cleaned);
+    } catch {
+      return fallback;
+    }
+  };
+
   // Role synced with currentUser.accountType
   const [currentRole, setCurrentRole] = useState<UserRole>(() => {
     return (currentUser.accountType as UserRole) || 'buyer';
   });
 
-  // Shops
+  // Shops (auto-migrating legacy /src/ image paths)
   const [shops, setShops] = useState<Shop[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_shops`);
-    return saved ? JSON.parse(saved) : INITIAL_SHOPS;
+    return normalizeSavedJson(saved, INITIAL_SHOPS);
   });
 
-  // Products
+  // Products (auto-migrating legacy /src/ image paths)
   const [products, setProducts] = useState<Product[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_products`);
-    return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+    return normalizeSavedJson(saved, INITIAL_PRODUCTS);
   });
 
-  // Advertisements
+  // Advertisements (auto-migrating legacy /src/ image paths)
   const [advertisements, setAdvertisements] = useState<Advertisement[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_advertisements`);
-    return saved ? JSON.parse(saved) : INITIAL_ADVERTISEMENTS;
+    return normalizeSavedJson(saved, INITIAL_ADVERTISEMENTS);
   });
 
   // Ad Subscriptions
@@ -578,8 +588,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         city: data.shopDetails.city,
         address: data.shopDetails.address,
         description: data.shopDetails.description || `${data.shopDetails.shopName} - Certified retail store.`,
-        logoUrl: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
-        bannerUrl: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+        logoUrl: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+        bannerUrl: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
         isVerified: false, // Must be approved by Admin!
         verificationBadgeNumber: 'PENDING_VERIFICATION',
         verifiedDate: 'Pending Review',
@@ -1229,8 +1239,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         city: 'Ikeja',
         address: req.address,
         description: `Verified retail merchant registered under CAC ${req.businessRegNumber}. Verified identity via ${req.idType}.`,
-        logoUrl: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
-        bannerUrl: '/src/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+        logoUrl: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+        bannerUrl: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
         isVerified: true,
         verificationBadgeNumber: badgeNum,
         verifiedDate,
