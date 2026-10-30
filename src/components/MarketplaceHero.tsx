@@ -90,12 +90,12 @@ export const MarketplaceHero: React.FC<MarketplaceHeroProps> = ({
                 <div className="text-white space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="bg-[#D4AF37] text-black text-[10px] font-bold px-2 py-0.5 rounded tracking-wider uppercase font-mono-numbers">
-                      ASKIA VERIFIED
+                      Verified Business Stores
                     </span>
-                    <span className="text-xs text-slate-300 font-mono-numbers">Lagos · Abuja · Port Harcourt · Kano</span>
+                    <span className="text-xs text-slate-300 font-mono-numbers">Nationwide Delivery</span>
                   </div>
                   <p className="text-xs font-light text-slate-200">
-                    Enterprise merchant verification & structured classifieds.
+                    Shop from businesses whose registration and identity have been reviewed by ASKIA MARKET.
                   </p>
                 </div>
               </div>
@@ -103,16 +103,16 @@ export const MarketplaceHero: React.FC<MarketplaceHeroProps> = ({
           </div>
         </div>
 
-        {/* 3 Value Pillars */}
+        {/* 3 Customer-Friendly Value Pillars */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-8 mt-10 border-t border-slate-800/80 text-xs">
           <div className="flex items-start gap-3 p-3.5 rounded-xl bg-black/40 border border-slate-800/80">
             <div className="p-2 rounded-lg bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20 shrink-0">
               <ShieldCheck className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="font-semibold text-white">CAC-Verified Merchants</h4>
+              <h4 className="font-semibold text-white">Verified Business Stores</h4>
               <p className="text-slate-400 mt-0.5 leading-relaxed font-light">
-                Registered shops undergo strict identification, receive an official Askia badge, and pay 5% commission per sale.
+                Shop from businesses whose corporate CAC registration and representative identity have been verified by ASKIA MARKET. Purchases include escrow buyer protection.
               </p>
             </div>
           </div>
@@ -122,9 +122,9 @@ export const MarketplaceHero: React.FC<MarketplaceHeroProps> = ({
               <Megaphone className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="font-semibold text-white">₦1,000 / 5 Ads Subscription</h4>
+              <h4 className="font-semibold text-white">Classified Advertisements</h4>
               <p className="text-slate-400 mt-0.5 leading-relaxed font-light">
-                Individual sellers publish classified listings via transparent bundles. Mandatory non-liability caution notices protect all parties.
+                Find items and services offered directly by individual advertisers. Review listings carefully, meet in safe public places during daytime, and inspect before payment.
               </p>
             </div>
           </div>
@@ -134,9 +134,9 @@ export const MarketplaceHero: React.FC<MarketplaceHeroProps> = ({
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="font-semibold text-white">Promotional Placements</h4>
+              <h4 className="font-semibold text-white">Featured Listings</h4>
               <p className="text-slate-400 mt-0.5 leading-relaxed font-light">
-                Elevate visibility with 7-day spotlights for verified products (₦1,500) and classified listings (₦800).
+                Discover eligible products and advertisements promoted for additional visibility across homepage highlights and category rankings.
               </p>
             </div>
           </div>

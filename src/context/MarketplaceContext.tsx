@@ -57,9 +57,32 @@ interface MarketplaceContextType {
   serverAdminSession: { authenticated: boolean; email?: string; name?: string; role?: string; avatarUrl?: string } | null;
   checkServerAdminSession: () => Promise<boolean>;
   loginSuperAdminWithGoogle: (credential: string) => Promise<{ success: boolean; error?: string; unauthorizedEmail?: string }>;
+  loginWithGoogleToken: (credential: string) => Promise<{ success: boolean; user?: any; error?: string; unauthorizedEmail?: string; pendingApproval?: boolean }>;
+  loginWithEmailOrPhone: (emailOrPhone: string, password: string) => Promise<{ success: boolean; user?: any; error?: string; pendingApproval?: boolean }>;
+  registerUniversal: (data: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    accountType: 'buyer' | 'shop_owner' | 'advertiser';
+    shopDetails?: {
+      shopName: string;
+      cacNumber: string;
+      idType: string;
+      idNumber: string;
+      address: string;
+      city: string;
+      state: string;
+      description: string;
+    };
+  }) => Promise<{ success: boolean; user?: any; error?: string }>;
+  requestOtp: (target: string, type: 'email' | 'phone') => Promise<{ success: boolean; message?: string; error?: string }>;
+  verifyOtp: (target: string, code: string, type?: 'email' | 'phone') => Promise<{ success: boolean; message?: string; error?: string }>;
+  resetPasswordWithOtp: (emailOrPhone: string, code: string, newPassword: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  submitMerchantKyc: (data: any) => Promise<{ success: boolean; record?: any; error?: string }>;
   syncServerAdminSession: (user: { email: string; name: string; role: string; avatarUrl?: string }) => void;
   loginAsUser: (userId: string) => void;
-  loginSuperAdmin: (email: string, password: string) => { success: boolean; error?: string };
+  loginSuperAdmin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   registerUser: (data: {
     name: string;
     email: string;
@@ -372,68 +395,91 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentRole(u.accountType as UserRole);
   };
 
-  // Check verified server session on boot
+  // Check verified server session on boot (Universal for all account types)
   useEffect(() => {
-    checkServerAdminSession();
+    checkUniversalSession();
   }, []);
 
-  const checkServerAdminSession = async (): Promise<boolean> => {
+  const checkUniversalSession = async (): Promise<boolean> => {
     try {
-      const res = await fetch('/api/admin/session', { credentials: 'include' });
+      const res = await fetch('/api/auth/session', { credentials: 'include' });
       if (!res.ok) return false;
       const data = await res.json();
       if (data.authenticated && data.user) {
-        setServerAdminSession({
-          authenticated: true,
-          email: data.user.email,
-          name: data.user.name,
-          role: data.user.role,
-          avatarUrl: data.user.avatarUrl
-        });
-        syncServerAdminSession(data.user);
+        applyAuthenticatedUser(data.user, data.isSuperAdmin);
         return true;
-      } else {
-        setServerAdminSession({ authenticated: false });
-        return false;
       }
+      return false;
     } catch {
-      setServerAdminSession({ authenticated: false });
       return false;
     }
   };
 
-  const syncServerAdminSession = (user: { email: string; name: string; role: string; avatarUrl?: string }) => {
-    const cleanEmail = user.email.toLowerCase();
-    let adminUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
-    if (!adminUser) {
-      adminUser = {
-        id: 'usr-super-admin-askia',
-        name: user.name || 'Askia Market Executive',
-        email: cleanEmail,
-        phone: '+234 800 000 0001',
-        accountType: 'admin',
-        adminRole: 'super_admin',
-        createdAt: '2026-01-01T00:00:00Z',
-        avatarUrl: user.avatarUrl
-      };
-      setUsers((prev) => [adminUser!, ...prev.filter((x) => x.email.toLowerCase() !== cleanEmail)]);
-    } else {
-      adminUser = {
-        ...adminUser,
-        name: user.name || adminUser.name,
-        accountType: 'admin',
-        adminRole: 'super_admin',
-        avatarUrl: user.avatarUrl || adminUser.avatarUrl
-      };
-      setUsers((prev) => [adminUser!, ...prev.filter((x) => x.id !== adminUser!.id)]);
-    }
-    setCurrentUserId(adminUser.id);
-    setCurrentRole('admin');
+  const checkServerAdminSession = async (): Promise<boolean> => {
+    return checkUniversalSession();
   };
 
-  const loginSuperAdminWithGoogle = async (
+  const applyAuthenticatedUser = (userData: any, isFounderAdmin?: boolean) => {
+    const cleanEmail = (userData.email || '').toLowerCase();
+    const isFounder = isFounderAdmin || cleanEmail === 'askiasventures@gmail.com' || cleanEmail === 'askiabusiness18@gmail.com';
+
+    let matchedUser = users.find((u) => u.email.toLowerCase() === cleanEmail || u.id === userData.id);
+    if (!matchedUser) {
+      matchedUser = {
+        id: userData.id || `usr-${Date.now()}`,
+        name: userData.name || 'Askia Market Member',
+        email: cleanEmail,
+        phone: userData.phone || '',
+        accountType: userData.accountType || (isFounder ? 'admin' : 'buyer'),
+        adminRole: isFounder ? 'super_admin' : userData.adminRole,
+        jobTitle: userData.jobTitle || (isFounder ? 'Founder & Super Administrator' : undefined),
+        department: userData.department || (isFounder ? 'Executive Office' : undefined),
+        permissions: userData.permissions,
+        status: userData.status || 'active',
+        isEmailVerified: userData.isEmailVerified,
+        isPhoneVerified: userData.isPhoneVerified,
+        createdAt: userData.createdAt || new Date().toISOString(),
+        avatarUrl: userData.avatarUrl || userData.picture
+      };
+      setUsers((prev) => [matchedUser!, ...prev]);
+    } else {
+      matchedUser = {
+        ...matchedUser,
+        name: userData.name || matchedUser.name,
+        accountType: userData.accountType || (isFounder ? 'admin' : matchedUser.accountType),
+        adminRole: isFounder ? 'super_admin' : (userData.adminRole || matchedUser.adminRole),
+        status: userData.status || matchedUser.status,
+        avatarUrl: userData.avatarUrl || userData.picture || matchedUser.avatarUrl
+      };
+      setUsers((prev) => prev.map((u) => (u.id === matchedUser!.id ? matchedUser! : u)));
+    }
+
+    setCurrentUserId(matchedUser.id);
+    if (isFounder || matchedUser.accountType === 'admin') {
+      setCurrentRole('admin');
+      setServerAdminSession({
+        authenticated: true,
+        email: cleanEmail,
+        name: matchedUser.name,
+        role: 'super_admin',
+        avatarUrl: matchedUser.avatarUrl
+      });
+    } else if (matchedUser.accountType === 'shop_owner') {
+      setCurrentRole('shop_owner');
+    } else if (matchedUser.accountType === 'advertiser') {
+      setCurrentRole('advertiser');
+    } else {
+      setCurrentRole('buyer');
+    }
+  };
+
+  const syncServerAdminSession = (user: { email: string; name: string; role: string; avatarUrl?: string }) => {
+    applyAuthenticatedUser({ ...user, accountType: 'admin', adminRole: 'super_admin' }, true);
+  };
+
+  const loginWithGoogleToken = async (
     credential: string
-  ): Promise<{ success: boolean; error?: string; unauthorizedEmail?: string }> => {
+  ): Promise<{ success: boolean; user?: any; error?: string; unauthorizedEmail?: string; pendingApproval?: boolean }> => {
     try {
       const res = await fetch('/api/auth/google/verify', {
         method: 'POST',
@@ -446,94 +492,207 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (!res.ok || !data.success) {
         return {
           success: false,
-          error: data.message || 'Access Denied: Google identity authorization failed.',
-          unauthorizedEmail: data.unauthorizedEmail
+          error: data.message || 'Access Denied: Google verification failed.',
+          unauthorizedEmail: data.unauthorizedEmail,
+          pendingApproval: data.pendingApproval
         };
       }
 
-      setServerAdminSession({
-        authenticated: true,
-        email: data.user.email,
-        name: data.user.name,
-        role: data.user.role,
-        avatarUrl: data.user.avatarUrl
-      });
-      syncServerAdminSession(data.user);
-      return { success: true };
+      if (data.pendingApproval) {
+        return {
+          success: true,
+          pendingApproval: true,
+          user: data.user
+        };
+      }
+
+      applyAuthenticatedUser(data.user, data.isSuperAdmin);
+      return { success: true, user: data.user };
     } catch (err: any) {
       return {
         success: false,
-        error: `Server connection error during Google authentication: ${err.message}`
+        error: `Server connection error during Google sign-in: ${err.message}`
       };
     }
   };
 
-  // Secure Super Admin Authentication
-  const loginSuperAdmin = (email: string, password: string): { success: boolean; error?: string } => {
-    const cleanEmail = email.trim().toLowerCase();
-    const isAuthorized = cleanEmail === 'askiasventures@gmail.com' || cleanEmail === 'askiabusiness18@gmail.com';
-    
-    if (!isAuthorized) {
+  const loginSuperAdminWithGoogle = async (
+    credential: string
+  ): Promise<{ success: boolean; error?: string; unauthorizedEmail?: string }> => {
+    const res = await loginWithGoogleToken(credential);
+    return {
+      success: res.success && !res.pendingApproval,
+      error: res.error,
+      unauthorizedEmail: res.unauthorizedEmail
+    };
+  };
+
+  // Universal Sign-In with Email/Phone + Password via Backend
+  const loginWithEmailOrPhone = async (
+    emailOrPhone: string,
+    password: string
+  ): Promise<{ success: boolean; user?: any; error?: string; pendingApproval?: boolean }> => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ emailOrPhone, password })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.message || 'Invalid credentials. Please verify your details.',
+          pendingApproval: data.error === 'pending_approval'
+        };
+      }
+
+      applyAuthenticatedUser(data.user, data.isSuperAdmin);
+      return { success: true, user: data.user };
+    } catch (err: any) {
       return {
         success: false,
-        error: 'Access Denied: Only authorized Askia Market administrators (askiasventures@gmail.com) are permitted.'
+        error: `Failed to connect to authentication server: ${err.message}`
       };
     }
+  };
 
-    if (!password || password.trim().length < 6) {
-      return {
-        success: false,
-        error: 'Please enter your authorized administrator credentials.'
-      };
+  // Server-authorized Super Admin Login
+  const loginSuperAdmin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+    const res = await loginWithEmailOrPhone(email, password);
+    if (res.success) {
+      const isFounder = email.trim().toLowerCase() === 'askiasventures@gmail.com' || email.trim().toLowerCase() === 'askiabusiness18@gmail.com';
+      if (!isFounder) {
+        return { success: false, error: 'Access Denied: Only authorized Askia Market administrators (askiasventures@gmail.com) are permitted.' };
+      }
+      return { success: true };
     }
+    return { success: false, error: res.error || 'Invalid administrator credentials.' };
+  };
 
-    let adminUser = users.find((u) => u.email.toLowerCase() === cleanEmail);
-    if (!adminUser) {
-      adminUser = {
-        id: 'usr-super-admin-askia',
-        name: 'Sensei Askia',
-        email: cleanEmail,
-        phone: '+234 800 000 0001',
-        accountType: 'admin',
-        adminRole: 'super_admin',
-        jobTitle: 'Founder & Super Administrator',
-        department: 'Executive Office',
-        createdAt: '2026-01-01T00:00:00Z',
-        avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
-      };
-      setUsers((prev) => [adminUser!, ...prev.filter((x) => x.email.toLowerCase() !== cleanEmail)]);
+  // Universal User Registration
+  const registerUniversal = async (data: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    accountType: 'buyer' | 'shop_owner' | 'advertiser';
+    shopDetails?: any;
+  }): Promise<{ success: boolean; user?: any; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+
+      const resData = await res.json();
+      if (!res.ok || !resData.success) {
+        return { success: false, error: resData.message || 'Registration failed.' };
+      }
+
+      applyAuthenticatedUser(resData.user, false);
+      return { success: true, user: resData.user };
+    } catch (err: any) {
+      return { success: false, error: `Connection error: ${err.message}` };
     }
+  };
 
-    setCurrentUserId(adminUser.id);
-    setCurrentRole('admin');
-    return { success: true };
+  // OTP Request
+  const requestOtp = async (target: string, type: 'email' | 'phone'): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/request-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: target, type })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.message || 'Failed to request verification code.' };
+      }
+      return { success: true, message: data.message };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // OTP Verification
+  const verifyOtp = async (target: string, code: string, type: 'email' | 'phone' = 'email'): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: target, type, code })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.message || 'Invalid or expired code.' };
+      }
+      return { success: true, message: data.message };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Password Reset with OTP
+  const resetPasswordWithOtp = async (emailOrPhone: string, code: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emailOrPhone, code, newPassword })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.message || 'Failed to reset password.' };
+      }
+      return { success: true, message: data.message };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Submit Merchant KYC with CAC & NIN
+  const submitMerchantKyc = async (data: any): Promise<{ success: boolean; record?: any; error?: string }> => {
+    try {
+      const res = await fetch('/api/kyc/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json();
+      if (!res.ok || !resData.success) {
+        return { success: false, error: resData.message || 'KYC submission failed.' };
+      }
+      return { success: true, record: resData.record };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
   };
 
   const logout = () => {
-    // Invalidate server session cookie
     fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     setServerAdminSession({ authenticated: false });
 
-    // Switch to public buyer mode
-    const existingBuyer = users.find((u) => u.accountType === 'buyer');
-    if (existingBuyer) {
-      setCurrentUserId(existingBuyer.id);
-      setCurrentRole('buyer');
-      return;
-    }
-    const newBuyer: UserAccount = {
-      id: `usr-buyer-${Date.now()}`,
+    // Reset current user to guest buyer
+    const guestBuyer: UserAccount = {
+      id: 'usr-buyer-guest',
       name: 'Customer (Buyer)',
       email: 'buyer@lagos.ng',
       phone: '+234 801 234 5678',
       accountType: 'buyer',
-      createdAt: new Date().toISOString(),
-      wishlist: []
+      createdAt: '2026-01-02T00:00:00Z'
     };
-    setUsers((prev) => [...prev, newBuyer]);
-    setCurrentUserId(newBuyer.id);
+    setUsers((prev) => [guestBuyer, ...prev.filter((u) => u.id !== 'usr-buyer-guest')]);
+    setCurrentUserId('usr-buyer-guest');
     setCurrentRole('buyer');
   };
+
+
 
   // Toggle saved wishlist item for buyer
   const toggleWishlist = (productId: string) => {
@@ -1480,6 +1639,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         serverAdminSession,
         checkServerAdminSession,
         loginSuperAdminWithGoogle,
+        loginWithGoogleToken,
+        loginWithEmailOrPhone,
+        registerUniversal,
+        requestOtp,
+        verifyOtp,
+        resetPasswordWithOtp,
+        submitMerchantKyc,
         syncServerAdminSession,
         loginAsUser,
         loginSuperAdmin,

@@ -17,6 +17,45 @@ export type ShopStaffRole =
   | 'inventory_officer' 
   | 'sales_cashier';
 
+export type VerificationStatus = 
+  | 'not_started' 
+  | 'pending' 
+  | 'verified' 
+  | 'rejected' 
+  | 'requires_review';
+
+export interface NinVerificationRecord {
+  maskedNin: string; // e.g. "•••• •••• 5678"
+  consentGiven: boolean;
+  consentTimestamp: string;
+  status: VerificationStatus;
+  provider: 'NIMC_Integration_Pass' | 'Manual_Compliance_Review';
+  verifiedAt?: string;
+  notes?: string;
+}
+
+export interface MerchantKycProfile {
+  businessName: string;
+  cacNumber: string; // RC / BN / IT number
+  registrationType: 'Limited Liability (RC)' | 'Business Name (BN)' | 'Incorporated Trustee (IT)';
+  registeredAddress: string;
+  city: string;
+  state: string;
+  authorizedRepName: string;
+  authorizedRepPhone: string;
+  authorizedRepEmail: string;
+  idType: 'National ID (NIN)' | 'International Passport' | "Voter's Card";
+  idNumber: string;
+  ninRecord?: NinVerificationRecord;
+  cacDocumentUrl?: string;
+  utilityBillUrl?: string;
+  status: VerificationStatus;
+  submittedAt: string;
+  reviewedAt?: string;
+  reviewedBy?: string;
+  rejectionReason?: string;
+}
+
 export interface UserAccount {
   id: string;
   name: string;
@@ -33,8 +72,13 @@ export interface UserAccount {
   createdAt: string;
   avatarUrl?: string;
   isEmailVerified?: boolean;
+  isPhoneVerified?: boolean;
+  kycStatus?: VerificationStatus;
+  kycProfile?: MerchantKycProfile;
+  ninRecord?: NinVerificationRecord;
   wishlist?: string[]; // Product IDs saved to buyer wishlist
-  status?: 'active' | 'suspended' | 'pending_approval';
+  status?: 'active' | 'suspended' | 'pending_approval' | 'revoked';
+  staffApplicationId?: string;
 }
 
 export interface AdminStaffMember {

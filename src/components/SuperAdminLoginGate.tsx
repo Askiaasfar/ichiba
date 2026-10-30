@@ -142,15 +142,15 @@ export const SuperAdminLoginGate: React.FC<SuperAdminLoginGateProps> = ({ onCanc
     setShowEmergencyPassword(true);
   };
 
-  // Emergency administrator credentials form
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  // Administrator credentials login form
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setUnauthorizedEmail(null);
     setIsAuthenticating(true);
 
-    setTimeout(() => {
-      const result = loginSuperAdmin(email, password);
+    try {
+      const result = await loginSuperAdmin(email, password);
       setIsAuthenticating(false);
 
       if (result.success) {
@@ -158,7 +158,10 @@ export const SuperAdminLoginGate: React.FC<SuperAdminLoginGateProps> = ({ onCanc
       } else {
         setError(result.error || 'Access Denied: Invalid Super Admin credentials.');
       }
-    }, 400);
+    } catch (err: any) {
+      setIsAuthenticating(false);
+      setError(`Authentication server error: ${err.message}`);
+    }
   };
 
   const handleExit = () => {

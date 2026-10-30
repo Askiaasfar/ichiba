@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MarketplaceProvider, useMarketplace } from './context/MarketplaceContext';
 import { CustomerPortal } from './components/CustomerPortal';
 import { StaffApplicationModal } from './components/StaffApplicationModal';
-import { RoleSwitcherBar } from './components/RoleSwitcherBar';
+
 import { Navbar } from './components/Navbar';
 import { MarketplaceHero } from './components/MarketplaceHero';
 import { ListingCard } from './components/ListingCard';
@@ -75,21 +75,7 @@ const MainMarketplaceApp: React.FC = () => {
   const [showPostChooser, setShowPostChooser] = useState(false);
   const [isStaffAppOpen, setIsStaffAppOpen] = useState(false);
   const [showCustomerPortal, setShowCustomerPortal] = useState(false);
-  const [showDevSwitcher, setShowDevSwitcher] = useState(() => {
-    return typeof window !== 'undefined' && window.location.search.includes('dev=true');
-  });
 
-  // Ctrl+Shift+D keyboard toggle for developer switcher
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'd') {
-        e.preventDefault();
-        setShowDevSwitcher((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // Sync URL search parameters for direct navigation or OAuth redirects
   React.useEffect(() => {
@@ -181,24 +167,8 @@ const MainMarketplaceApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8F9FA] text-[#1E293B]">
-      {/* 1. Developer Role Switcher (Hidden from normal public visitors; toggled via Ctrl+Shift+D or footer debug link) */}
-      {showDevSwitcher && (
-        <div className="relative border-b-2 border-amber-500">
-          <div className="bg-amber-400 text-black px-4 py-1 text-[11px] font-bold flex items-center justify-between">
-            <span>[DEV WORKSPACE SWITCHER ACTIVE — Press Ctrl+Shift+D to toggle]</span>
-            <button
-              onClick={() => setShowDevSwitcher(false)}
-              className="text-black hover:underline cursor-pointer"
-            >
-              Hide Switcher ✕
-            </button>
-          </div>
-          <RoleSwitcherBar onOpenAuthModal={() => handleOpenAuth('login')} />
-        </div>
-      )}
-
-      {/* 2. Top Bar Navigation adhering strictly to the Top Bar Contract */}
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-[#F8F9FA] text-[#1E293B]">
+      {/* Top Bar Navigation adhering strictly to the Official ASKIA MARKET Brand */}
       <Navbar
         activeTab={activeNavTab}
         setActiveTab={(tab) => {
@@ -207,10 +177,21 @@ const MainMarketplaceApp: React.FC = () => {
         }}
         onOpenCart={() => setIsCartOpen(true)}
         onOpenCreateModal={handleOpenCreateModal}
-        onOpenAuthModal={() => handleOpenAuth('login')}
+        onOpenAuthModal={(mode) => handleOpenAuth(mode || 'login')}
         onOpenCustomerPortal={() => {
           setShowCustomerPortal(true);
           setActiveNavTab('marketplace');
+        }}
+        onFilterDeals={() => {
+          setActiveNavTab('marketplace');
+          setFeedTypeFilter('featured');
+          setShowCustomerPortal(false);
+        }}
+        onSelectCategorySection={() => {
+          setActiveNavTab('marketplace');
+          setShowCustomerPortal(false);
+          const el = document.getElementById('categories-filter-bar');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
         }}
       />
 
@@ -581,7 +562,7 @@ const MainMarketplaceApp: React.FC = () => {
         )}
       </main>
 
-      {/* Footer */}
+      {/* Clean Public Footer */}
       <footer className="bg-[#0A0A0A] border-t border-[#262626] mt-auto text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-3 text-center sm:text-left">
@@ -592,41 +573,69 @@ const MainMarketplaceApp: React.FC = () => {
               · Your World. Your Market.
             </span>
             <span className="text-slate-600 hidden md:inline">·</span>
-            <span className="text-slate-400">Verified Corporate Merchants & Moderated Classifieds</span>
+            <span className="text-slate-400">Verified Business Stores & Moderated Classifieds</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-5 text-xs text-slate-400">
-            <button onClick={() => setActiveNavTab('rules')} className="hover:text-[#D4AF37] transition-colors">
-              Platform Policy & Escrow
+          <div className="flex flex-wrap items-center justify-center md:justify-end gap-5 text-xs text-slate-400">
+            <button
+              onClick={() => {
+                setActiveNavTab('rules');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-[#D4AF37] transition-colors"
+            >
+              About ASKIA MARKET
             </button>
-            <button onClick={() => setActiveNavTab('shops')} className="hover:text-[#D4AF37] transition-colors">
-              Verified Directory
-            </button>
-            <button onClick={() => setActiveNavTab('classifieds')} className="hover:text-[#D4AF37] transition-colors">
-              Classified Ads
-            </button>
-            <button onClick={() => setIsStaffAppOpen(true)} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
-              Join Operating Team
-            </button>
-            <button onClick={() => handleOpenAuth('login')} className="hover:text-white transition-colors font-medium">
-              Account Sign In
+            <a
+              href="mailto:support@askiamarket.ng"
+              className="hover:text-[#D4AF37] transition-colors"
+            >
+              Contact
+            </a>
+            <button
+              onClick={() => {
+                setActiveNavTab('rules');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-[#D4AF37] transition-colors"
+            >
+              Safety & Policy
             </button>
             <button
               onClick={() => {
-                setActiveNavTab('marketplace');
-                setCurrentRole('admin');
+                setActiveNavTab('rules');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="text-[#D4AF37]/90 hover:text-[#D4AF37] transition-colors flex items-center gap-1 font-mono text-[11px]"
-              title="Super Admin Private Console (Restricted to Askia Market Executives)"
+              className="hover:text-[#D4AF37] transition-colors"
             >
-              <span>🔒 Executive Admin Portal</span>
+              Terms & Conditions
             </button>
             <button
-              onClick={() => setShowDevSwitcher(!showDevSwitcher)}
-              className="text-slate-500 hover:text-slate-300 text-[10px] font-mono"
-              title="Toggle development workspace switcher (or press Ctrl+Shift+D)"
+              onClick={() => {
+                setActiveNavTab('rules');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-[#D4AF37] transition-colors"
             >
-              {showDevSwitcher ? '[Hide Dev Switcher]' : '[Dev Switcher]'}
+              Privacy Policy
+            </button>
+            <button
+              onClick={() => handleOpenAuth('register')}
+              className="hover:text-emerald-400 text-slate-300 transition-colors font-medium"
+            >
+              Become a Seller
+            </button>
+            <button
+              onClick={() => setIsStaffAppOpen(true)}
+              className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+            >
+              Join Operating Team
+            </button>
+            <button
+              onClick={() => handleOpenAuth('login')}
+              className="hover:text-white text-[#D4AF37] transition-colors font-semibold"
+            >
+              Sign In / Register
             </button>
           </div>
         </div>
