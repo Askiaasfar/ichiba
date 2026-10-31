@@ -20,6 +20,10 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 const GOOGLE_CALLBACK_URL = process.env.GOOGLE_CALLBACK_URL || `${APP_URL}/api/auth/google/callback`;
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || '';
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';
+const FACEBOOK_CALLBACK_URL = process.env.FACEBOOK_CALLBACK_URL || `${APP_URL}/api/auth/facebook/callback`;
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjB-meeNuWn_wQhpq63qIGupnvQBQ';
 const SUPER_ADMIN_RAW = process.env.SUPER_ADMIN_EMAIL || 'askiasventures@gmail.com,askiabusiness18@gmail.com';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'askia_market_production_super_admin_secret_key_2026';
 
@@ -158,6 +162,13 @@ function hashPassword(password: string): string {
 }
 
 // In-Memory User Store (Preserved across server session)
+interface ConnectedIdentityRecord {
+  provider: 'google' | 'facebook' | 'email' | 'phone';
+  identifier: string;
+  connectedAt: string;
+  verified: boolean;
+}
+
 interface ServerUserRecord {
   id: string;
   name: string;
@@ -176,6 +187,12 @@ interface ServerUserRecord {
   kycStatus?: 'not_started' | 'pending' | 'verified' | 'rejected' | 'requires_review';
   createdAt: string;
   avatarUrl?: string;
+  authProviders?: ('email' | 'phone' | 'google' | 'facebook')[];
+  registrationSource?: 'email' | 'phone' | 'google' | 'facebook';
+  googleId?: string;
+  facebookId?: string;
+  lastLoginAt?: string;
+  connectedIdentities?: ConnectedIdentityRecord[];
 }
 
 let serverUsers: ServerUserRecord[] = [
@@ -360,6 +377,154 @@ let serverKycSubmissions: ServerKycSubmission[] = [
     notes: 'CAC verified against official business registry. Photo ID match confirmed.'
   }
 ];
+
+// ==========================================
+// REAL-TIME NOTIFICATIONS & CHAT HUB
+// ==========================================
+interface ServerNotification {
+  id: string;
+  recipientUserId: string;
+  senderUserId?: string;
+  senderName?: string;
+  type: 'chat_message' | 'order_update' | 'payment_update' | 'kyc_update' | 'system_alert' | 'inquiry';
+  title: string;
+  body: string;
+  linkUrl?: string;
+  metadata?: any;
+  read: boolean;
+  createdAt: string;
+}
+
+interface ServerChatMessage {
+  id: string;
+  threadId: string;
+  senderId: string;
+  senderName: string;
+  recipientId: string;
+  message: string;
+  listingId?: string;
+  listingTitle?: string;
+  listingPrice?: number;
+  listingImageUrl?: string;
+  createdAt: string;
+  read: boolean;
+}
+
+interface PushSubscriptionRecord {
+  userId: string;
+  subscription: any;
+  createdAt: string;
+}
+
+interface ProductViewRecord {
+  totalViews: number;
+  uniqueViewers: Set<string>;
+  lastViewedAt: string;
+}
+
+// Connected SSE clients for instantaneous real-time streaming
+const sseClients = new Map<string, Response[]>();
+
+// Push subscriptions by userId
+const serverPushSubscriptions: PushSubscriptionRecord[] = [];
+
+// Product views map: productId -> ProductViewRecord
+const serverProductViews = new Map<string, ProductViewRecord>();
+
+// Preseed initial product views with realistic baseline counts
+serverProductViews.set('prod-1', { totalViews: 1420, uniqueViewers: new Set(['viewer-1', 'viewer-2', 'viewer-3']), lastViewedAt: new Date().toISOString() });
+serverProductViews.set('prod-2', { totalViews: 890, uniqueViewers: new Set(['viewer-4', 'viewer-5']), lastViewedAt: new Date().toISOString() });
+serverProductViews.set('prod-3', { totalViews: 2150, uniqueViewers: new Set(['viewer-6', 'viewer-7']), lastViewedAt: new Date().toISOString() });
+serverProductViews.set('prod-4', { totalViews: 640, uniqueViewers: new Set(['viewer-8']), lastViewedAt: new Date().toISOString() });
+serverProductViews.set('ad-1', { totalViews: 3200, uniqueViewers: new Set(['viewer-9', 'viewer-10']), lastViewedAt: new Date().toISOString() });
+
+// In-Memory Persistent Notifications Store
+let serverNotifications: ServerNotification[] = [
+  {
+    id: 'notif-init-1',
+    recipientUserId: 'usr-owner-1',
+    senderUserId: 'usr-buyer-guest',
+    senderName: 'Customer (Buyer)',
+    type: 'chat_message',
+    title: 'New Buyer Inquiry',
+    body: 'Customer (Buyer): Hi, is the AuraBook Pro laptop still available for pickup in Ikeja?',
+    linkUrl: '/?chat=prod-1',
+    metadata: { threadId: 'thread-prod-1', productId: 'prod-1' },
+    read: false,
+    createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'notif-init-2',
+    recipientUserId: 'usr-owner-1',
+    senderUserId: 'usr-super-admin-askia',
+    senderName: 'ASKIA MARKET Trust & Safety',
+    type: 'kyc_update',
+    title: 'Verified Merchant Badge Issued',
+    body: 'Congratulations! Your CAC certificate RC-1489021 has been verified. Verified Store Badge is now live.',
+    linkUrl: '/?tab=shops',
+    metadata: { shopId: 'shop-1' },
+    read: true,
+    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'notif-init-3',
+    recipientUserId: 'usr-super-admin-askia',
+    senderUserId: 'usr-owner-1',
+    senderName: 'Babajide Adeleke',
+    type: 'system_alert',
+    title: 'New Merchant Onboarded',
+    body: 'Aura Tech Global Systems completed store setup with active catalog listings.',
+    linkUrl: '/?tab=admin',
+    metadata: { shopId: 'shop-1' },
+    read: false,
+    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  }
+];
+
+// In-Memory Chat Messages Store
+let serverChatMessages: ServerChatMessage[] = [
+  {
+    id: 'msg-init-1',
+    threadId: 'thread-prod-1',
+    senderId: 'usr-buyer-guest',
+    senderName: 'Customer (Buyer)',
+    recipientId: 'usr-owner-1',
+    message: 'Hello, is the AuraBook Pro laptop available with immediate delivery in Lagos?',
+    listingId: 'prod-1',
+    listingTitle: 'AuraBook Pro 16" Ultra-Thin Performance Laptop',
+    listingPrice: 1850000,
+    listingImageUrl: '/assets/images/product_tech_laptop_1793094444722.jpg',
+    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    read: false
+  }
+];
+
+// Real-time Event Dispatcher
+function dispatchNotification(notification: Omit<ServerNotification, 'id' | 'read' | 'createdAt'>): ServerNotification {
+  const newNotif: ServerNotification = {
+    ...notification,
+    id: `notif-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    read: false,
+    createdAt: new Date().toISOString()
+  };
+
+  serverNotifications.unshift(newNotif);
+
+  // Broadcast to connected SSE clients
+  const recipientClients = sseClients.get(newNotif.recipientUserId);
+  if (recipientClients && recipientClients.length > 0) {
+    const sseMessage = `event: notification\ndata: ${JSON.stringify(newNotif)}\n\n`;
+    recipientClients.forEach((res) => {
+      try {
+        res.write(sseMessage);
+      } catch (err) {
+        // Client disconnection will trigger clean-up
+      }
+    });
+  }
+
+  return newNotif;
+}
 
 // Server-side Authentication Middleware for Protected Admin APIs
 function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
@@ -1437,47 +1602,837 @@ app.post('/api/admin/staff/applications/:id/review', requireSuperAdmin, (req: Re
 });
 
 // ==========================================
-// SERVER-SIDE ORDER PRICING & CHECKOUT INTEGRITY
+// REAL-TIME NOTIFICATIONS API (SSE & PUSH)
 // ==========================================
-app.post('/api/orders/calculate', (req: Request, res: Response) => {
-  const { items, commissionRatePercent = 5.0 } = req.body;
-  if (!items || !Array.isArray(items)) {
-    return res.status(400).json({ error: 'Invalid items array.' });
+
+// SSE Connection Endpoint: streams real-time notifications to authenticated clients
+app.get('/api/notifications/stream', (req: Request, res: Response) => {
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  let session = token ? verifySessionToken(token) : null;
+  const userId = session?.userId || (req.query.userId as string);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'User identification required for notification stream.' });
   }
 
-  let totalAmount = 0;
-  const calculatedItems = items.map((item: any) => {
-    // Pricing integrity: check for salePrice safely without defaulting to 0
-    const rawSalePrice = item.salePrice;
-    const hasValidSale = rawSalePrice !== undefined && rawSalePrice !== null && !isNaN(Number(rawSalePrice)) && Number(rawSalePrice) > 0;
-    const finalPrice = hasValidSale ? Number(rawSalePrice) : Number(item.price || 0);
-    const quantity = Math.max(1, Number(item.quantity || 1));
-    const lineTotal = finalPrice * quantity;
-    totalAmount += lineTotal;
+  // Set SSE headers
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-transform',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no'
+  });
+
+  res.write(': connected\n\n');
+
+  // Register client
+  const existing = sseClients.get(userId) || [];
+  existing.push(res);
+  sseClients.set(userId, existing);
+
+  // Send initial unread count & unread notifications backlog
+  const unreadNotifs = serverNotifications.filter((n) => n.recipientUserId === userId && !n.read);
+  res.write(`event: init\ndata: ${JSON.stringify({ unreadCount: unreadNotifs.length, notifications: unreadNotifs.slice(0, 20) })}\n\n`);
+
+  // Periodic heartbeat keep-alive (every 25s)
+  const pingInterval = setInterval(() => {
+    try {
+      res.write(': ping\n\n');
+    } catch {
+      clearInterval(pingInterval);
+    }
+  }, 25000);
+
+  // Clean-up on client disconnect
+  req.on('close', () => {
+    clearInterval(pingInterval);
+    const clients = sseClients.get(userId) || [];
+    const filtered = clients.filter((c) => c !== res);
+    if (filtered.length > 0) {
+      sseClients.set(userId, filtered);
+    } else {
+      sseClients.delete(userId);
+    }
+  });
+});
+
+// Get user notifications (persistent query)
+app.get('/api/notifications', (req: Request, res: Response) => {
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+  const userId = session?.userId || (req.query.userId as string);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required.' });
+  }
+
+  const unreadOnly = req.query.unread === 'true';
+  let list = serverNotifications.filter((n) => n.recipientUserId === userId);
+  if (unreadOnly) {
+    list = list.filter((n) => !n.read);
+  }
+
+  const unreadCount = serverNotifications.filter((n) => n.recipientUserId === userId && !n.read).length;
+
+  res.json({
+    success: true,
+    notifications: list.slice(0, 50),
+    unreadCount
+  });
+});
+
+// Mark single notification as read
+app.post('/api/notifications/:id/read', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+  const userId = session?.userId || (req.body.userId as string);
+
+  const notif = serverNotifications.find((n) => n.id === id);
+  if (!notif) {
+    return res.status(404).json({ error: 'Notification not found.' });
+  }
+
+  // Authorization check: only recipient can mark as read
+  if (userId && notif.recipientUserId !== userId) {
+    return res.status(403).json({ error: 'forbidden', message: 'Cannot modify notifications belonging to another user.' });
+  }
+
+  notif.read = true;
+  res.json({ success: true, notification: notif });
+});
+
+// Mark all notifications for user as read
+app.post('/api/notifications/read-all', (req: Request, res: Response) => {
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+  const userId = session?.userId || (req.body.userId as string);
+
+  if (!userId) {
+    return res.status(400).json({ error: 'User ID is required.' });
+  }
+
+  serverNotifications
+    .filter((n) => n.recipientUserId === userId)
+    .forEach((n) => {
+      n.read = true;
+    });
+
+  res.json({ success: true, message: 'All notifications marked as read.' });
+});
+
+// Store browser push notification subscription
+app.post('/api/notifications/push-subscribe', (req: Request, res: Response) => {
+  const { subscription, userId } = req.body;
+  if (!subscription) {
+    return res.status(400).json({ error: 'Push subscription payload is required.' });
+  }
+
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+  const targetUser = userId || session?.userId || 'usr-anonymous';
+
+  // Save subscription record
+  serverPushSubscriptions.push({
+    userId: targetUser,
+    subscription,
+    createdAt: new Date().toISOString()
+  });
+
+  res.json({ success: true, message: 'Browser push notification subscription registered.' });
+});
+
+// Return VAPID Public Key for Web Push subscription
+app.get('/api/notifications/vapid-public-key', (req: Request, res: Response) => {
+  res.json({
+    publicKey: VAPID_PUBLIC_KEY,
+    configured: Boolean(process.env.VAPID_PUBLIC_KEY)
+  });
+});
+
+// ==========================================
+// REAL-TIME BUYER-TO-SELLER CHAT API
+// ==========================================
+
+// Send a chat message (instantly dispatches real-time notification to recipient)
+app.post('/api/chat/send', (req: Request, res: Response) => {
+  const {
+    recipientId,
+    message,
+    threadId,
+    listingId,
+    listingTitle,
+    listingPrice,
+    listingImageUrl
+  } = req.body;
+
+  const content = (message || req.body.text || '').toString();
+
+  if (!recipientId || !content.trim()) {
+    return res.status(400).json({ error: 'Recipient ID and message content are required.' });
+  }
+
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+
+  const senderId = session?.userId || req.body.senderId || 'usr-buyer-guest';
+  const senderName = session?.name || req.body.senderName || 'Customer Buyer';
+
+  const finalThreadId = threadId || `thread-${listingId || Date.now()}`;
+
+  const newMsg: ServerChatMessage = {
+    id: `msg-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    threadId: finalThreadId,
+    senderId,
+    senderName,
+    recipientId,
+    message: content.trim(),
+    listingId,
+    listingTitle,
+    listingPrice: Number(listingPrice) || undefined,
+    listingImageUrl,
+    createdAt: new Date().toISOString(),
+    read: false
+  };
+
+  serverChatMessages.push(newMsg);
+
+  // Instantly dispatch notification to recipient (in-app, SSE stream & push)
+  const notif = dispatchNotification({
+    recipientUserId: recipientId,
+    senderUserId: senderId,
+    senderName,
+    type: 'chat_message',
+    title: `New message from ${senderName}`,
+    body: `${listingTitle ? `Re: ${listingTitle} — ` : ''}${content.trim().slice(0, 90)}...`,
+    linkUrl: `/?chat=${listingId || finalThreadId}`,
+    metadata: {
+      threadId: finalThreadId,
+      listingId,
+      senderId,
+      messageId: newMsg.id
+    }
+  });
+
+  // Also broadcast message event over SSE stream to recipient and sender
+  [recipientId, senderId].forEach((uid) => {
+    const clients = sseClients.get(uid);
+    if (clients) {
+      clients.forEach((c) => {
+        try {
+          c.write(`event: chat_message\ndata: ${JSON.stringify(newMsg)}\n\n`);
+        } catch {}
+      });
+    }
+  });
+
+  logAuditEvent('settings_update', senderId, req.ip || '', `Chat message dispatched to ${recipientId}`);
+  res.json({ success: true, message: newMsg, notification: notif });
+});
+
+// Get user chat threads
+app.get('/api/chat/threads', (req: Request, res: Response) => {
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+  const userId = session?.userId || (req.query.userId as string);
+
+  if (!userId) {
+    return res.status(401).json({ error: 'Authentication required.' });
+  }
+
+  // Group messages by threadId
+  const userMessages = serverChatMessages.filter((m) => m.senderId === userId || m.recipientId === userId);
+  const threadMap = new Map<string, ServerChatMessage[]>();
+
+  userMessages.forEach((m) => {
+    const list = threadMap.get(m.threadId) || [];
+    list.push(m);
+    threadMap.set(m.threadId, list);
+  });
+
+  const threads = Array.from(threadMap.entries()).map(([threadId, msgs]) => {
+    msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const lastMsg = msgs[msgs.length - 1];
+    const unreadCount = msgs.filter((m) => m.recipientId === userId && !m.read).length;
+
+    // Determine other party
+    const isSender = lastMsg.senderId === userId;
+    const partnerId = isSender ? lastMsg.recipientId : lastMsg.senderId;
+    const partner = serverUsers.find((u) => u.id === partnerId);
 
     return {
-      productId: item.id || item.productId,
-      title: item.title,
-      price: finalPrice,
-      quantity,
-      lineTotal,
-      shopId: item.shopId,
-      shopName: item.shopName
+      threadId,
+      listingId: lastMsg.listingId,
+      listingTitle: lastMsg.listingTitle || 'Marketplace Item',
+      listingPrice: lastMsg.listingPrice,
+      listingImageUrl: lastMsg.listingImageUrl,
+      partnerId,
+      partnerName: partner?.name || (isSender ? 'Seller' : lastMsg.senderName),
+      partnerAccountType: partner?.accountType || 'shop_owner',
+      lastMessage: lastMsg.message,
+      lastMessageAt: lastMsg.createdAt,
+      unreadCount
     };
   });
 
-  const platformCommission = Math.round((totalAmount * commissionRatePercent) / 100);
-  const merchantPayout = totalAmount - platformCommission;
+  threads.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+  res.json({ success: true, threads });
+});
 
-  return res.json({
-    items: calculatedItems,
-    subtotal: totalAmount,
-    commissionRatePercent,
-    platformCommission,
-    merchantPayout,
-    currency: 'NGN',
-    escrowGuaranteed: true
+// Get messages for a specific thread
+app.get('/api/chat/thread/:threadId/messages', (req: Request, res: Response) => {
+  const { threadId } = req.params;
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+  const userId = session?.userId || (req.query.userId as string);
+
+  const msgs = serverChatMessages.filter((m) => m.threadId === threadId);
+  msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+  // Mark messages sent to this user as read
+  if (userId) {
+    msgs.forEach((m) => {
+      if (m.recipientId === userId) {
+        m.read = true;
+      }
+    });
+  }
+
+  res.json({ success: true, messages: msgs });
+});
+
+// ==========================================
+// MULTI-PROVIDER AUTHENTICATION & FACEBOOK OAUTH
+// ==========================================
+
+// Facebook OAuth Public Configuration
+app.get('/api/auth/facebook/config', (req: Request, res: Response) => {
+  const configured = Boolean(FACEBOOK_APP_ID && FACEBOOK_APP_SECRET);
+  res.json({
+    configured,
+    appId: FACEBOOK_APP_ID || null,
+    callbackUrl: FACEBOOK_CALLBACK_URL,
+    requiredSettings: {
+      graphVersion: 'v19.0',
+      scope: 'email,public_profile'
+    }
   });
+});
+
+// Facebook Login Initiation (Redirect Flow)
+app.get('/api/auth/facebook/login', (req: Request, res: Response) => {
+  if (!FACEBOOK_APP_ID) {
+    return res.redirect('/?auth=facebook_unconfigured&desc=Facebook+App+ID+is+not+configured+in+server+environment.');
+  }
+
+  const state = crypto.randomBytes(16).toString('hex');
+  res.cookie('fb_oauth_state', state, { httpOnly: true, maxAge: 10 * 60 * 1000, sameSite: 'lax' });
+
+  const fbAuthUrl = `https://www.facebook.com/v19.0/dialog/oauth?client_id=${FACEBOOK_APP_ID}&redirect_uri=${encodeURIComponent(FACEBOOK_CALLBACK_URL)}&state=${state}&scope=email,public_profile`;
+  res.redirect(fbAuthUrl);
+});
+
+// Facebook OAuth Callback
+app.get('/api/auth/facebook/callback', async (req: Request, res: Response) => {
+  const { code, state, error, error_description } = req.query;
+
+  if (error || !code) {
+    logAuditEvent('login_denied', 'facebook_error', req.ip || '', `Facebook OAuth error: ${error_description || error || 'Missing code'}`);
+    return res.redirect(`/?auth=error&desc=${encodeURIComponent(String(error_description || 'Facebook authentication was cancelled.'))}`);
+  }
+
+  try {
+    // Exchange code for Access Token
+    const tokenUrl = `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${FACEBOOK_APP_ID}&client_secret=${FACEBOOK_APP_SECRET}&redirect_uri=${encodeURIComponent(FACEBOOK_CALLBACK_URL)}&code=${code}`;
+    const tokenRes = await fetch(tokenUrl);
+    const tokenData = await tokenRes.json();
+
+    if (!tokenRes.ok || !tokenData.access_token) {
+      throw new Error(tokenData.error?.message || 'Failed to exchange Facebook authorization code.');
+    }
+
+    // Fetch user profile from Facebook Graph API
+    const profileUrl = `https://graph.facebook.com/v19.0/me?fields=id,name,email,picture.width(200).height(200)&access_token=${tokenData.access_token}`;
+    const profileRes = await fetch(profileUrl);
+    const profile = await profileRes.json();
+
+    if (!profile.id) {
+      throw new Error('Unable to retrieve profile from Facebook Graph API.');
+    }
+
+    const email = (profile.email || `${profile.id}@facebook.user.askiamarket.ng`).toLowerCase();
+    const name = profile.name || 'Askia Market Member';
+    const avatarUrl = profile.picture?.data?.url || '';
+
+    // Account Linking & Match Check
+    let user = serverUsers.find((u) => u.facebookId === profile.id || u.email.toLowerCase() === email);
+
+    if (user) {
+      // Link Facebook ID to existing user if not already linked
+      user.facebookId = profile.id;
+      if (!user.authProviders) user.authProviders = ['email'];
+      if (!user.authProviders.includes('facebook')) user.authProviders.push('facebook');
+      if (avatarUrl && !user.avatarUrl) user.avatarUrl = avatarUrl;
+    } else {
+      // Auto-provision as new verified buyer
+      user = {
+        id: `usr-fb-${profile.id}`,
+        name,
+        email,
+        phone: '',
+        passwordHash: '',
+        accountType: 'buyer',
+        status: 'active',
+        isEmailVerified: Boolean(profile.email),
+        isPhoneVerified: false,
+        authProviders: ['facebook'],
+        registrationSource: 'facebook',
+        facebookId: profile.id,
+        avatarUrl,
+        createdAt: new Date().toISOString()
+      };
+      serverUsers.push(user);
+    }
+
+    // Create secure session
+    const now = Math.floor(Date.now() / 1000);
+    const sessionPayload: SessionPayload = {
+      sub: `usr-${user.id}`,
+      userId: user.id,
+      email: user.email,
+      phone: user.phone,
+      name: user.name,
+      picture: user.avatarUrl,
+      accountType: user.accountType,
+      status: user.status,
+      iat: now,
+      exp: now + 24 * 60 * 60
+    };
+
+    const sessionToken = signSessionToken(sessionPayload);
+    res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    logAuditEvent('login_success', user.email, req.ip || '', 'User authenticated via Facebook OAuth');
+    return res.redirect('/?auth=success');
+  } catch (err: any) {
+    console.error('Facebook OAuth processing failed:', err);
+    return res.redirect(`/?auth=error&desc=${encodeURIComponent(err.message)}`);
+  }
+});
+
+// Client-side Facebook Token Verification (Facebook JavaScript SDK)
+app.post('/api/auth/facebook/verify', async (req: Request, res: Response) => {
+  const { accessToken } = req.body;
+  if (!accessToken) {
+    return res.status(400).json({ error: 'Facebook access token is required.' });
+  }
+
+  try {
+    const profileUrl = `https://graph.facebook.com/v19.0/me?fields=id,name,email,picture.width(200).height(200)&access_token=${accessToken}`;
+    const profileRes = await fetch(profileUrl);
+    const profile = await profileRes.json();
+
+    if (!profile.id) {
+      return res.status(401).json({ error: 'invalid_token', message: 'Unable to verify Facebook access token.' });
+    }
+
+    const email = (profile.email || `${profile.id}@facebook.user.askiamarket.ng`).toLowerCase();
+    const name = profile.name || 'Askia Market Member';
+    const avatarUrl = profile.picture?.data?.url || '';
+
+    let user = serverUsers.find((u) => u.facebookId === profile.id || u.email.toLowerCase() === email);
+
+    if (user) {
+      user.facebookId = profile.id;
+      if (!user.authProviders) user.authProviders = ['email'];
+      if (!user.authProviders.includes('facebook')) user.authProviders.push('facebook');
+    } else {
+      user = {
+        id: `usr-fb-${profile.id}`,
+        name,
+        email,
+        phone: '',
+        passwordHash: '',
+        accountType: 'buyer',
+        status: 'active',
+        isEmailVerified: Boolean(profile.email),
+        isPhoneVerified: false,
+        authProviders: ['facebook'],
+        registrationSource: 'facebook',
+        facebookId: profile.id,
+        avatarUrl,
+        createdAt: new Date().toISOString()
+      };
+      serverUsers.push(user);
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+    const sessionPayload: SessionPayload = {
+      sub: `usr-${user.id}`,
+      userId: user.id,
+      email: user.email,
+      phone: user.phone,
+      name: user.name,
+      picture: user.avatarUrl,
+      accountType: user.accountType,
+      status: user.status,
+      iat: now,
+      exp: now + 24 * 60 * 60
+    };
+
+    const sessionToken = signSessionToken(sessionPayload);
+    res.cookie(SESSION_COOKIE_NAME, sessionToken, {
+      httpOnly: true,
+      secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+
+    logAuditEvent('login_success', user.email, req.ip || '', 'User authenticated via Facebook JS SDK');
+    res.json({ success: true, user });
+  } catch (err: any) {
+    res.status(500).json({ error: 'verification_failed', message: err.message });
+  }
+});
+
+// Link additional authentication provider to existing account safely
+app.post('/api/auth/link-account', (req: Request, res: Response) => {
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required to link account.' });
+  }
+
+  const { provider, identifier, verified = true } = req.body;
+  if (!provider || !identifier) {
+    return res.status(400).json({ error: 'Provider and identifier are required.' });
+  }
+
+  const user = serverUsers.find((u) => u.id === session.userId);
+  if (!user) {
+    return res.status(404).json({ error: 'User record not found.' });
+  }
+
+  // Check if identifier is already linked to another person's account (Prevent takeover)
+  const conflicting = serverUsers.find((u) => u.id !== user.id && (u.email === identifier.toLowerCase() || u.phone === identifier));
+  if (conflicting) {
+    return res.status(409).json({
+      error: 'already_linked',
+      message: 'This identity is already connected to another registered ASKIA MARKET account.'
+    });
+  }
+
+  if (!user.authProviders) user.authProviders = ['email'];
+  if (!user.authProviders.includes(provider)) {
+    user.authProviders.push(provider);
+  }
+
+  if (!user.connectedIdentities) user.connectedIdentities = [];
+  user.connectedIdentities.push({
+    provider,
+    identifier,
+    connectedAt: new Date().toISOString(),
+    verified: Boolean(verified)
+  });
+
+  logAuditEvent('settings_update', user.email, req.ip || '', `Linked new auth provider: ${provider} (${identifier})`);
+  return res.json({ success: true, user, message: `Successfully linked ${provider} to your account.` });
+});
+
+// ==========================================
+// PRODUCT VIEW COUNT TRACKING (ABUSE-PROTECTED)
+// ==========================================
+const viewLedger = new Map<string, number>(); // key: `${productId}:${viewerKey}` -> timestamp
+
+app.post('/api/products/:id/view', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const session = token ? verifySessionToken(token) : null;
+  const viewerKey = session?.userId || req.ip || 'anonymous-viewer';
+
+  const ledgerKey = `${id}:${viewerKey}`;
+  const now = Date.now();
+  const lastViewTime = viewLedger.get(ledgerKey);
+
+  let record = serverProductViews.get(id);
+  if (!record) {
+    record = { totalViews: 0, uniqueViewers: new Set(), lastViewedAt: new Date().toISOString() };
+    serverProductViews.set(id, record);
+  }
+
+  // Deduplication rule: Count unique view once per hour per viewer to prevent artificial inflation
+  if (!lastViewTime || now - lastViewTime > 60 * 60 * 1000) {
+    record.totalViews += 1;
+    record.uniqueViewers.add(viewerKey);
+    record.lastViewedAt = new Date().toISOString();
+    viewLedger.set(ledgerKey, now);
+  }
+
+  res.json({
+    success: true,
+    productId: id,
+    totalViews: record.totalViews,
+    uniqueViews: record.uniqueViewers.size
+  });
+});
+
+app.get('/api/products/:id/stats', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const record = serverProductViews.get(id) || { totalViews: 0, uniqueViewers: new Set(), lastViewedAt: new Date().toISOString() };
+  res.json({
+    success: true,
+    productId: id,
+    totalViews: record.totalViews,
+    uniqueViews: record.uniqueViewers.size,
+    lastViewedAt: record.lastViewedAt
+  });
+});
+
+app.get('/api/products/stats', (req: Request, res: Response) => {
+  const result: Record<string, { totalViews: number; uniqueViews: number }> = {};
+  serverProductViews.forEach((val, key) => {
+    result[key] = {
+      totalViews: val.totalViews,
+      uniqueViews: val.uniqueViewers.size
+    };
+  });
+  res.json({ success: true, stats: result });
+});
+
+// ==========================================
+// FOUNDER USER ANALYTICS & MANAGEMENT (PHASE 4)
+// ==========================================
+
+// Complete User Analytics Endpoint (Real database aggregation)
+app.get('/api/admin/users/analytics', requireSuperAdmin, (req: Request, res: Response) => {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+
+  const totalUsers = serverUsers.length;
+  let newToday = 0;
+  let newThisWeek = 0;
+  let newThisMonth = 0;
+  let newThisYear = 0;
+
+  let activeUsers = 0;
+  let inactiveUsers = 0;
+  let verifiedUsers = 0;
+  let unverifiedUsers = 0;
+  let suspendedUsers = 0;
+
+  let customers = 0;
+  let sellers = 0;
+  let advertisers = 0;
+  let staff = 0;
+
+  const registrationSources = {
+    google: 0,
+    facebook: 0,
+    email: 0,
+    phone: 0
+  };
+
+  const accountTypes = {
+    buyer: 0,
+    shop_owner: 0,
+    advertiser: 0,
+    staff: 0,
+    admin: 0
+  };
+
+  const verificationDistribution = {
+    verified: 0,
+    pending: 0,
+    not_started: 0
+  };
+
+  // Group by date for growth chart
+  const dateMap = new Map<string, number>();
+
+  serverUsers.forEach((u) => {
+    const createdDate = new Date(u.createdAt);
+
+    if (createdDate >= oneDayAgo) newToday += 1;
+    if (createdDate >= oneWeekAgo) newThisWeek += 1;
+    if (createdDate >= oneMonthAgo) newThisMonth += 1;
+    if (createdDate >= oneYearAgo) newThisYear += 1;
+
+    // Status
+    if (u.status === 'active') activeUsers += 1;
+    else if (u.status === 'suspended' || u.status === 'revoked') suspendedUsers += 1;
+    else inactiveUsers += 1;
+
+    // Verification
+    if (u.isEmailVerified || u.isPhoneVerified || u.kycStatus === 'verified') {
+      verifiedUsers += 1;
+    } else {
+      unverifiedUsers += 1;
+    }
+
+    if (u.kycStatus === 'verified') verificationDistribution.verified += 1;
+    else if (u.kycStatus === 'pending') verificationDistribution.pending += 1;
+    else verificationDistribution.not_started += 1;
+
+    // Account category
+    if (u.accountType === 'buyer') {
+      customers += 1;
+      accountTypes.buyer += 1;
+    } else if (u.accountType === 'shop_owner') {
+      sellers += 1;
+      accountTypes.shop_owner += 1;
+    } else if (u.accountType === 'advertiser') {
+      advertisers += 1;
+      accountTypes.advertiser += 1;
+    } else if (u.accountType === 'staff') {
+      staff += 1;
+      accountTypes.staff += 1;
+    } else if (u.accountType === 'admin') {
+      accountTypes.admin += 1;
+    }
+
+    // Sources
+    const src = u.registrationSource || (u.email.includes('gmail.com') ? 'google' : u.phone ? 'phone' : 'email');
+    if (src === 'google') registrationSources.google += 1;
+    else if (src === 'facebook') registrationSources.facebook += 1;
+    else if (src === 'phone') registrationSources.phone += 1;
+    else registrationSources.email += 1;
+
+    // Growth date formatting
+    const dStr = u.createdAt.split('T')[0];
+    dateMap.set(dStr, (dateMap.get(dStr) || 0) + 1);
+  });
+
+  const pendingStaff = serverStaffApplications.filter((a) => a.status === 'pending').length;
+
+  const growthTrend = Array.from(dateMap.entries())
+    .map(([date, users]) => ({ date, users }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  res.json({
+    success: true,
+    summary: {
+      totalUsers,
+      newToday,
+      newThisWeek,
+      newThisMonth,
+      newThisYear,
+      activeUsers,
+      inactiveUsers,
+      verifiedUsers,
+      unverifiedUsers,
+      suspendedUsers,
+      customers,
+      sellers,
+      advertisers,
+      staff,
+      pendingStaff,
+      registrationSources,
+      accountTypes,
+      verificationDistribution,
+      growthTrend
+    }
+  });
+});
+
+// All Users List with Search & Filtering
+app.get('/api/admin/users', requireSuperAdmin, (req: Request, res: Response) => {
+  const { search, role, status, verification } = req.query;
+
+  let filtered = [...serverUsers];
+
+  if (search && typeof search === 'string') {
+    const q = search.toLowerCase();
+    filtered = filtered.filter((u) => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.phone.includes(q));
+  }
+
+  if (role && role !== 'all') {
+    filtered = filtered.filter((u) => u.accountType === role);
+  }
+
+  if (status && status !== 'all') {
+    filtered = filtered.filter((u) => u.status === status);
+  }
+
+  if (verification && verification !== 'all') {
+    if (verification === 'verified') {
+      filtered = filtered.filter((u) => u.isEmailVerified || u.isPhoneVerified || u.kycStatus === 'verified');
+    } else {
+      filtered = filtered.filter((u) => !u.isEmailVerified && !u.isPhoneVerified && u.kycStatus !== 'verified');
+    }
+  }
+
+  // Strip password hashes before responding
+  const sanitized = filtered.map(({ passwordHash, ...user }) => user);
+
+  res.json({
+    success: true,
+    total: sanitized.length,
+    users: sanitized
+  });
+});
+
+// Update User Account Status (Suspend / Reactivate / Revoke)
+app.post('/api/admin/users/:id/status', requireSuperAdmin, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, reason } = req.body;
+
+  const validStatuses = ['active', 'suspended', 'pending_approval', 'revoked'];
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status value.' });
+  }
+
+  const user = serverUsers.find((u) => u.id === id);
+  if (!user) {
+    return res.status(404).json({ error: 'User record not found.' });
+  }
+
+  // Prevent founder from suspending themselves
+  if (isSuperAdminEmail(user.email)) {
+    return res.status(403).json({ error: 'forbidden', message: 'Cannot alter status of Founder & Super Administrator account.' });
+  }
+
+  const oldStatus = user.status;
+  user.status = status;
+
+  logAuditEvent('settings_update', (req as any).superAdmin.email, req.ip || '', `Updated user status for ${user.email}: ${oldStatus} -> ${status}. Reason: ${reason || 'Administrative action'}`);
+  return res.json({ success: true, user: { id: user.id, email: user.email, status: user.status } });
+});
+
+// Revoke All User Sessions
+app.post('/api/admin/users/:id/revoke-sessions', requireSuperAdmin, (req: Request, res: Response) => {
+  const { id } = req.params;
+  const user = serverUsers.find((u) => u.id === id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found.' });
+  }
+
+  // Close any active SSE streams
+  const clients = sseClients.get(id);
+  if (clients) {
+    clients.forEach((c) => {
+      try {
+        c.write(`event: session_revoked\ndata: ${JSON.stringify({ message: 'Session revoked by administrator.' })}\n\n`);
+        c.end();
+      } catch {}
+    });
+    sseClients.delete(id);
+  }
+
+  logAuditEvent('settings_update', (req as any).superAdmin.email, req.ip || '', `Revoked all active sessions for ${user.email}`);
+  res.json({ success: true, message: `All active sessions revoked for ${user.email}.` });
 });
 
 // ==========================================

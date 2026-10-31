@@ -18,6 +18,8 @@ import { CautionNoticeBanner } from './components/CautionNoticeBanner';
 import { AuthModal } from './components/AuthModal';
 import { ChatModal } from './components/ChatModal';
 import { SuperAdminLoginGate } from './components/SuperAdminLoginGate';
+import { NotificationDrawer } from './components/NotificationDrawer';
+import { NotificationToast } from './components/NotificationToast';
 import { Product, Advertisement, Shop } from './types/marketplace';
 import {
   Search,
@@ -59,12 +61,14 @@ const MainMarketplaceApp: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedState, setSelectedState] = useState('all');
+  const [sortBy, setSortBy] = useState<'recommended' | 'price_low' | 'price_high' | 'popular' | 'newest'>('recommended');
 
   // Modals state
   const [selectedItem, setSelectedItem] = useState<ListingItem | null>(null);
   const [selectedShopId, setSelectedShopId] = useState<string | null>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [paymentItem, setPaymentItem] = useState<{
     type: 'ad_subscription' | 'feature_product' | 'feature_ad';
@@ -145,8 +149,34 @@ const MainMarketplaceApp: React.FC = () => {
       }
 
       return true;
+    }).sort((a, b) => {
+      const getPrice = (it: ListingItem) => {
+        if (it.type === 'product') {
+          return it.data.salePrice && it.data.salePrice > 0 ? it.data.salePrice : it.data.price;
+        }
+        return it.data.price;
+      };
+
+      if (sortBy === 'price_low') {
+        return getPrice(a) - getPrice(b);
+      }
+      if (sortBy === 'price_high') {
+        return getPrice(b) - getPrice(a);
+      }
+      if (sortBy === 'popular') {
+        const aViews = a.type === 'product' ? (a.data.viewCount || 0) : 0;
+        const bViews = b.type === 'product' ? (b.data.viewCount || 0) : 0;
+        return bViews - aViews;
+      }
+      if (sortBy === 'newest') {
+        return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
+      }
+      // Recommended / Default: Featured first, then newest
+      if (a.data.isFeatured && !b.data.isFeatured) return -1;
+      if (!a.data.isFeatured && b.data.isFeatured) return 1;
+      return new Date(b.data.createdAt).getTime() - new Date(a.data.createdAt).getTime();
     });
-  }, [combinedListings, feedTypeFilter, activeNavTab, searchQuery, selectedCategory, selectedState]);
+  }, [combinedListings, feedTypeFilter, activeNavTab, searchQuery, selectedCategory, selectedState, sortBy]);
 
   // Handle "Post Listing" button click
   const handleOpenCreateModal = () => {
@@ -193,6 +223,7 @@ const MainMarketplaceApp: React.FC = () => {
           const el = document.getElementById('categories-filter-bar');
           if (el) el.scrollIntoView({ behavior: 'smooth' });
         }}
+        onOpenNotifications={() => setIsNotificationsOpen(true)}
       />
 
       {/* Main Content Area */}
@@ -362,12 +393,26 @@ const MainMarketplaceApp: React.FC = () => {
                           <option value="Oyo">Oyo (Ibadan)</option>
                           <option value="Kano">Kano</option>
                         </select>
+
+                        {/* Sort Selector */}
+                        <select
+                          value={sortBy}
+                          onChange={(e: any) => setSortBy(e.target.value)}
+                          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-emerald-500 font-medium"
+                          title="Sort listings"
+                        >
+                          <option value="recommended">Featured &amp; Recommended</option>
+                          <option value="popular">Most Viewed / Popular</option>
+                          <option value="price_low">Price: Low to High</option>
+                          <option value="price_high">Price: High to Low</option>
+                          <option value="newest">Newest Arrivals</option>
+                        </select>
                       </div>
                     </div>
 
                     {/* Segmented Filter Controls */}
                     <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-100">
-                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg overflow-x-auto">
+                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg overflow-x-auto max-w-full">
                         <button
                           onClick={() => setFeedTypeFilter('all')}
                           className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
@@ -420,8 +465,8 @@ const MainMarketplaceApp: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Listings Grid */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6">
+                {/* Listings Grid (2-Column Mobile, 4-Column Desktop) */}
+                <div className="max-w-7xl mx-auto px-3 sm:px-6">
                   {filteredListings.length === 0 ? (
                     <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 space-y-3">
                       <Filter className="w-8 h-8 mx-auto text-slate-300" />
@@ -432,6 +477,7 @@ const MainMarketplaceApp: React.FC = () => {
                           setSelectedCategory('all');
                           setSelectedState('all');
                           setFeedTypeFilter('all');
+                          setSortBy('recommended');
                         }}
                         className="px-3.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition-colors"
                       >
@@ -439,7 +485,7 @@ const MainMarketplaceApp: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                       {filteredListings.map((item) => (
                         <ListingCard
                           key={`${item.type}-${item.data.id}`}
@@ -677,6 +723,16 @@ const MainMarketplaceApp: React.FC = () => {
       />
 
       <ChatModal />
+
+      {/* Real-time Notification Drawer & In-App Toast Alert */}
+      <NotificationDrawer
+        isOpen={isNotificationsOpen}
+        onClose={() => setIsNotificationsOpen(false)}
+      />
+
+      <NotificationToast
+        onOpenDrawer={() => setIsNotificationsOpen(true)}
+      />
 
       {/* Post Chooser Modal (Directs user to register in appropriate category) */}
       {showPostChooser && (

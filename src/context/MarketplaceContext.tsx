@@ -20,7 +20,8 @@ import {
   StaffApplicationRequest,
   StaffCompensationRecord,
   AccountTypeConfig,
-  AccountType
+  AccountType,
+  AppNotification
 } from '../types/marketplace';
 import {
   INITIAL_USERS,
@@ -119,6 +120,18 @@ interface MarketplaceContextType {
   cartTotal: number;
   currentAdvertiserSubscription: AdSubscription | undefined;
   
+  // Real-Time Notifications & Interaction
+  notifications: AppNotification[];
+  unreadNotificationCount: number;
+  activeToast: AppNotification | null;
+  dismissToast: () => void;
+  fetchNotifications: () => Promise<void>;
+  markNotificationAsRead: (id: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
+  trackProductView: (productId: string) => Promise<void>;
+  linkSocialAccount: (provider: string, identifier: string) => Promise<{ success: boolean; message?: string; error?: string }>;
+  requestPushPermission: () => Promise<boolean>;
+
   // Chat messaging
   chatThreads: Record<string, ChatThread>;
   activeChatThread: ChatThread | null;
@@ -302,6 +315,187 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return saved ? JSON.parse(saved) : {};
   });
   const [activeChatListingId, setActiveChatListingId] = useState<string | null>(null);
+
+  // In-app notifications & SSE real-time connection
+  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_notifications`);
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [activeToast, setActiveToast] = useState<AppNotification | null>(null);
+
+  const unreadNotificationCount = notifications.filter((n) => !n.read).length;
+
+  const dismissToast = () => setActiveToast(null);
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch(`/api/notifications?userId=${encodeURIComponent(currentUser?.id || '')}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.notifications)) {
+        setNotifications(data.notifications);
+        localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(data.notifications));
+      }
+    } catch {
+      // offline fallback
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      fetchNotifications();
+    }
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`${STORAGE_KEY}_notifications`, JSON.stringify(notifications));
+  }, [notifications]);
+
+  // Real-Time SSE Stream for Instant Push & In-App Toast
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource(`/api/notifications/stream?userId=${encodeURIComponent(currentUser.id)}`);
+
+      es.addEventListener('notification', (e: MessageEvent) => {
+        try {
+          const notif: AppNotification = JSON.parse(e.data);
+          setNotifications((prev) => [notif, ...prev.filter((n) => n.id !== notif.id)]);
+          setActiveToast(notif);
+          setTimeout(() => {
+            setActiveToast((curr) => (curr?.id === notif.id ? null : curr));
+          }, 6000);
+        } catch (err) {
+          console.error('SSE notification parse error:', err);
+        }
+      });
+
+      es.addEventListener('chat_message', (e: MessageEvent) => {
+        try {
+          const chatMsg = JSON.parse(e.data);
+          if (chatMsg.threadId) {
+            setChatThreads((prev) => {
+              const thread = prev[chatMsg.threadId];
+              if (!thread) return prev;
+              const alreadyHas = thread.messages.some((m) => m.id === chatMsg.id);
+              if (alreadyHas) return prev;
+              return {
+                ...prev,
+                [chatMsg.threadId]: {
+                  ...thread,
+                  messages: [
+                    ...thread.messages,
+                    {
+                      id: chatMsg.id,
+                      senderRole: chatMsg.senderRole,
+                      senderName: chatMsg.senderName,
+                      text: chatMsg.text,
+                      timestamp: new Date(chatMsg.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })
+                    }
+                  ],
+                  lastMessageAt: chatMsg.createdAt
+                }
+              };
+            });
+          }
+        } catch (err) {
+          console.error('SSE chat_message parse error:', err);
+        }
+      });
+    } catch (err) {
+      console.warn('SSE stream error:', err);
+    }
+
+    return () => {
+      if (es) {
+        es.close();
+      }
+    };
+  }, [currentUser?.id]);
+
+  const markNotificationAsRead = async (id: string) => {
+    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    try {
+      await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+    } catch {}
+  };
+
+  const markAllNotificationsAsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    try {
+      await fetch('/api/notifications/read-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser?.id })
+      });
+    } catch {}
+  };
+
+  const trackProductView = async (productId: string) => {
+    try {
+      const res = await fetch(`/api/products/${productId}/view`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.success && typeof data.viewCount === 'number') {
+        setProducts((prev) =>
+          prev.map((p) => (p.id === productId ? { ...p, viewCount: data.viewCount } : p))
+        );
+      }
+    } catch {}
+  };
+
+  const linkSocialAccount = async (provider: string, identifier: string) => {
+    try {
+      const res = await fetch('/api/auth/link-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: currentUser?.id, provider, identifier })
+      });
+      const data = await res.json();
+      if (data.success && data.user) {
+        setUsers((prev) => prev.map((u) => (u.id === data.user.id ? data.user : u)));
+      }
+      return data;
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const requestPushPermission = async (): Promise<boolean> => {
+    if (!('Notification' in window) || !('serviceWorker' in navigator)) {
+      return false;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return false;
+
+      const reg = await navigator.serviceWorker.ready;
+      const keyRes = await fetch('/api/notifications/vapid-public-key');
+      const keyData = await keyRes.json();
+
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: keyData.publicKey
+      });
+
+      await fetch('/api/notifications/push-subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub, userId: currentUser?.id })
+      });
+
+      return true;
+    } catch (err) {
+      console.warn('Push registration notification:', err);
+      return false;
+    }
+  };
 
   // Synchronize role whenever current user changes
   useEffect(() => {
@@ -1034,6 +1228,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const sendChatMessage = (listingId: string, messageText: string) => {
     if (!messageText.trim()) return;
 
+    const thread = chatThreads[listingId];
     const newMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       senderRole: 'buyer',
@@ -1043,26 +1238,43 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
 
     setChatThreads((prev) => {
-      const thread = prev[listingId];
-      if (!thread) return prev;
+      const t = prev[listingId];
+      if (!t) return prev;
 
       return {
         ...prev,
         [listingId]: {
-          ...thread,
-          messages: [...thread.messages, newMsg],
+          ...t,
+          messages: [...t.messages, newMsg],
           lastMessageAt: new Date().toISOString()
         }
       };
     });
 
-    // Realistic automated seller response simulation
+    // Send to server-authoritative chat & notification engine
+    fetch('/api/chat/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        threadId: listingId,
+        listingId,
+        listingTitle: thread?.listingTitle || 'Marketplace Item',
+        senderId: currentUser.id,
+        senderName: currentUser.name || 'Prospective Buyer',
+        senderRole: 'buyer',
+        recipientId: thread?.sellerName || 'Verified Merchant',
+        recipientRole: 'seller',
+        text: messageText.trim()
+      })
+    }).catch((err) => console.warn('Real-time chat dispatch note:', err));
+
+    // Realistic automated seller response simulation for instant feedback
     setTimeout(() => {
       setChatThreads((prev) => {
-        const thread = prev[listingId];
-        if (!thread) return prev;
+        const t = prev[listingId];
+        if (!t) return prev;
 
-        const isVerified = thread.isVerifiedSeller;
+        const isVerified = t.isVerifiedSeller;
         const autoReplyText = isVerified
           ? `Thank you for your inquiry! This item is 100% verified in-stock at our store with return warranty. Would you like to proceed with direct cart checkout or have any other questions?`
           : `Thanks for the message! Yes, this item is available. Where are you located so we can arrange a physical inspection before you pay?`;
@@ -1070,7 +1282,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const replyMsg: ChatMessage = {
           id: `msg-rep-${Date.now()}`,
           senderRole: 'seller',
-          senderName: thread.sellerName,
+          senderName: t.sellerName,
           text: autoReplyText,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
@@ -1078,13 +1290,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return {
           ...prev,
           [listingId]: {
-            ...thread,
-            messages: [...thread.messages, replyMsg],
+            ...t,
+            messages: [...t.messages, replyMsg],
             lastMessageAt: new Date().toISOString()
           }
         };
       });
-    }, 900);
+    }, 1100);
   };
 
   // Shop Owner: Add Product
@@ -1667,6 +1879,16 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         cartCount,
         cartTotal,
         currentAdvertiserSubscription,
+        notifications,
+        unreadNotificationCount,
+        activeToast,
+        dismissToast,
+        fetchNotifications,
+        markNotificationAsRead,
+        markAllNotificationsAsRead,
+        trackProductView,
+        linkSocialAccount,
+        requestPushPermission,
         chatThreads,
         activeChatThread,
         openChat,

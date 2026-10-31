@@ -56,6 +56,13 @@ export interface MerchantKycProfile {
   rejectionReason?: string;
 }
 
+export interface ConnectedIdentity {
+  provider: 'google' | 'facebook' | 'email' | 'phone';
+  identifier: string; // e.g. email or phone or social ID
+  connectedAt: string;
+  verified: boolean;
+}
+
 export interface UserAccount {
   id: string;
   name: string;
@@ -79,6 +86,80 @@ export interface UserAccount {
   wishlist?: string[]; // Product IDs saved to buyer wishlist
   status?: 'active' | 'suspended' | 'pending_approval' | 'revoked';
   staffApplicationId?: string;
+  authProviders?: ('email' | 'phone' | 'google' | 'facebook')[];
+  registrationSource?: 'email' | 'phone' | 'google' | 'facebook';
+  connectedIdentities?: ConnectedIdentity[];
+  followedShops?: string[];
+  recentlyViewed?: string[];
+}
+
+export interface AppNotification {
+  id: string;
+  recipientUserId: string;
+  senderUserId?: string;
+  senderName?: string;
+  type: 'chat_message' | 'order_update' | 'payment_update' | 'kyc_update' | 'system_alert' | 'inquiry';
+  title: string;
+  body: string;
+  linkUrl?: string;
+  metadata?: {
+    threadId?: string;
+    orderId?: string;
+    productId?: string;
+    shopId?: string;
+    adId?: string;
+    senderId?: string;
+  };
+  read: boolean;
+  createdAt: string;
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  rating: number; // 1-5
+  comment: string;
+  createdAt: string;
+  verifiedPurchase: boolean;
+}
+
+export interface UserAnalyticsSummary {
+  totalUsers: number;
+  newToday: number;
+  newThisWeek: number;
+  newThisMonth: number;
+  newThisYear: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  verifiedUsers: number;
+  unverifiedUsers: number;
+  suspendedUsers: number;
+  customers: number;
+  sellers: number;
+  advertisers: number;
+  staff: number;
+  pendingStaff: number;
+  registrationSources: {
+    google: number;
+    facebook: number;
+    email: number;
+    phone: number;
+  };
+  accountTypes: {
+    buyer: number;
+    shop_owner: number;
+    advertiser: number;
+    staff: number;
+    admin: number;
+  };
+  verificationDistribution: {
+    verified: number;
+    pending: number;
+    not_started: number;
+  };
+  growthTrend: { date: string; users: number }[];
 }
 
 export interface AdminStaffMember {
@@ -197,6 +278,8 @@ export interface Product {
   description: string;
   price: number; // in NGN (Naira)
   salePrice?: number;
+  originalPrice?: number;
+  discountPercent?: number;
   category: string;
   condition: 'Brand New' | 'Open Box' | 'Refurbished';
   stock: number;
@@ -207,6 +290,11 @@ export interface Product {
   createdAt: string;
   specs: Record<string, string>;
   salesCount: number;
+  viewCount?: number;
+  rating?: number;
+  reviewsCount?: number;
+  reviews?: ProductReview[];
+  deliveryInfo?: string;
 }
 
 export interface Advertisement {

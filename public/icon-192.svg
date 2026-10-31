@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <rect width="192" height="192" rx="42" fill="#000000"/>
+  <circle cx="96" cy="96" r="86" fill="none" stroke="#D4AF37" stroke-width="3" stroke-opacity="0.35"/>
+  <circle cx="96" cy="96" r="76" fill="none" stroke="#D4AF37" stroke-width="1.5" stroke-dasharray="4 4" stroke-opacity="0.5"/>
+  <!-- Central Stylized Askia Emblem -->
+  <path d="M52 144 L78 52 L96 96 L114 52 L140 144 L122 144 L107 90 L96 118 L85 90 L70 144 Z" fill="#D4AF37"/>
+  <circle cx="96" cy="44" r="6" fill="#D4AF37"/>
+  <!-- Golden Accent Diamond -->
+  <polygon points="96,152 99,157 96,162 93,157" fill="#D4AF37"/>
+</svg>

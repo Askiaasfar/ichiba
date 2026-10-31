@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useMarketplace } from '../context/MarketplaceContext';
 import {
   ShoppingBag,
+  Bell,
   Plus,
   ShieldCheck,
   Megaphone,
@@ -26,6 +27,7 @@ interface NavbarProps {
   onOpenCustomerPortal?: () => void;
   onFilterDeals?: () => void;
   onSelectCategorySection?: () => void;
+  onOpenNotifications?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -36,9 +38,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuthModal,
   onOpenCustomerPortal,
   onFilterDeals,
-  onSelectCategorySection
+  onSelectCategorySection,
+  onOpenNotifications
 }) => {
-  const { cartCount, currentRole, currentUser, isSuperAdmin, logout, setCurrentRole } = useMarketplace();
+  const { 
+    cartCount, 
+    currentRole, 
+    currentUser, 
+    isSuperAdmin, 
+    logout, 
+    setCurrentRole,
+    unreadNotificationCount 
+  } = useMarketplace();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -193,10 +204,25 @@ export const Navbar: React.FC<NavbarProps> = ({
 
         {/* Zone 3: Actions, Cart & Universal Auth */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          {/* Real-time Notification Bell */}
+          <button
+            onClick={onOpenNotifications}
+            className="relative p-2 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-slate-800 cursor-pointer"
+            title="Real-Time Notifications"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4 text-slate-200" />
+            {unreadNotificationCount > 0 && (
+              <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-black text-[10px] font-bold min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-mono-numbers shadow-sm animate-pulse">
+                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+              </span>
+            )}
+          </button>
+
           {/* Cart button */}
           <button
             onClick={onOpenCart}
-            className="relative p-2 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-slate-800"
+            className="relative p-2 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-slate-800 cursor-pointer"
             title="Shopping Cart (Verified Store Purchases)"
           >
             <ShoppingBag className="w-4 h-4 text-slate-200" />

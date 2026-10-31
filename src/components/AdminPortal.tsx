@@ -8,6 +8,7 @@ import {
   AccountTypeConfig,
   AccountType
 } from '../types/marketplace';
+import { AdminUsersSection } from './AdminUsersSection';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -88,7 +89,7 @@ export const AdminPortal: React.FC = () => {
 
   // Active admin sub-tab
   const [activeAdminTab, setActiveAdminTab] = useState<
-    'overview' | 'sellers' | 'ads' | 'payments' | 'roles' | 'payroll' | 'account_types' | 'settings'
+    'overview' | 'users' | 'sellers' | 'ads' | 'payments' | 'roles' | 'payroll' | 'account_types' | 'settings'
   >('overview');
 
   // Staff creation form (Workflow A: Founder Invitation)
@@ -456,6 +457,18 @@ export const AdminPortal: React.FC = () => {
         >
           <Layers className="w-3.5 h-3.5" />
           <span>Dashboard Overview</span>
+        </button>
+
+        <button
+          onClick={() => setActiveAdminTab('users')}
+          className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 ${
+            activeAdminTab === 'users'
+              ? 'bg-[#D4AF37] text-black font-bold shadow-xs'
+              : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          <Users className="w-3.5 h-3.5" />
+          <span>Users &amp; Growth Analytics</span>
         </button>
 
         <button
@@ -1265,6 +1278,11 @@ export const AdminPortal: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Tab 2: Users & Growth Analytics */}
+      {activeAdminTab === 'users' && (
+        <AdminUsersSection />
       )}
 
       {/* Tab 5: Admin Team Roles & Staff Management */}

@@ -1,0 +1,958 @@
+# ASKIA MARKET — NEXT-GENERATION MARKETPLACE UPGRADE
+## Real-Time Notifications, Universal User Accounts, Admin Analytics, Premium Shopping UI & 2027-Ready Features
+
+I am continuing my existing ASKIA MARKET project in Google AI Studio.
+
+**Do not rebuild the application from scratch.** Inspect the existing codebase and continue from the current checkpoint.
+
+### Current project context
+
+ASKIA MARKET is a Nigerian multi-vendor marketplace for:
+- Verified corporate merchants
+- Products and online storefronts
+- Individual classified advertisements
+- Buyer and seller conversations
+- Orders, payments, and escrow-related features
+- Staff management
+- Founder-controlled administration
+
+Brand:
+- Product: ASKIA MARKET
+- Tagline: Your World. Your Market.
+- Black: `#000000`
+- Gold: `#D4AF37`
+- Dark Charcoal: `#0A0A0A`
+- White: `#F5F5F5`
+
+The previous authentication task reported:
+- Universal authentication modal
+- Google authentication
+- Email or phone plus password
+- OTP verification and recovery
+- Staff application workflow
+- Founder-only Super Admin access
+- Responsive navigation
+- Image-loading fix
+- Build success
+
+These are reported achievements, not proof that every feature works in production. Inspect the actual code and deployment before making assumptions.
+
+The current deployment previously referenced:
+
+`https://ais-dev-lhxqmcs4pkbt7hegjjbrdg-519153662077.europe-west2.run.app`
+
+Verify whether this is still the correct backend or frontend deployment before using it.
+
+---
+
+# PHASE 1 — UNIVERSAL ACCOUNT SYSTEM AND USER REGISTRATION
+
+I want to know exactly how many people use ASKIA MARKET.
+
+Every user should have a proper account and a unique user record.
+
+Support registration and login through:
+
+1. Phone number
+2. Email address
+3. Google
+4. Facebook
+5. Other legitimate authentication providers where they can be securely integrated
+
+Do not add fake social login buttons.
+
+Each authentication provider must use its official OAuth or authentication process. If Facebook or another provider requires configuration, create the integration properly and report the required credentials and callback URLs.
+
+A user may connect more than one authentication method to the same account.
+
+For example:
+- A user registers with a phone number.
+- Later, the user connects Google.
+- The system recognizes the same user instead of creating a duplicate account.
+
+Account linking must require verification and must not allow someone to take over another person's account.
+
+Use a unique internal user ID regardless of the login method.
+
+## Account access
+
+Create a clear authentication experience with:
+- Welcome screen
+- Sign In
+- Create Account
+- Continue with Google
+- Continue with Facebook
+- Continue with Phone
+- Continue with Email
+- Forgot Password
+- Email Verification
+- Phone Verification
+- Account Security
+- Logout
+
+The user should not see the Super Admin login as a separate public login option.
+
+All users must use the same authentication system.
+
+The backend determines whether the user is:
+- Customer
+- Seller
+- Classified Advertiser
+- Staff
+- Founder / Super Admin
+
+Do not let users choose privileged roles during registration.
+
+A user must never gain admin or staff permissions just by signing in with a Google or Facebook account.
+
+Preserve the existing founder authorization for:
+
+`askiasventures@gmail.com`
+
+Do not create additional founders without explicit founder authorization.
+
+### Account access policy
+
+Make the authentication requirement configurable.
+
+The default experience should allow users to discover the marketplace, while requiring authentication for protected activities such as:
+- Sending messages
+- Saving products
+- Following stores
+- Adding items to cart
+- Placing orders
+- Posting listings
+- Creating a store
+- Accessing private dashboards
+
+If the platform is configured to require sign-in before viewing marketplace listings, enforce that setting consistently.
+
+Do not leave users in a confusing half-authenticated state.
+
+---
+
+# PHASE 2 — REAL-TIME BUYER AND SELLER NOTIFICATIONS
+
+This is one of the highest-priority features.
+
+## Example scenario
+
+1. I create a buyer account.
+2. My friend owns a seller account.
+3. My friend publishes a phone listing.
+4. I open the listing.
+5. I click "Chat with Seller."
+6. I send the message: "Hi."
+7. My friend receives a notification immediately.
+
+The notification must work whether the seller is:
+- Using the website
+- Using the mobile app
+- Logged in on another device
+- Currently away from the website
+- Offline, with the notification delivered when possible
+
+Do not implement this as a simulated notification or a localStorage-only message.
+
+## Notification channels
+
+Implement the following notification layers:
+
+### A. In-app notifications
+
+Create a notification bell in the authenticated header.
+
+It should show:
+- Unread count
+- Notification list
+- Notification type
+- Sender
+- Message preview
+- Time received
+- Read/unread status
+- Link to the relevant conversation, order, listing, or account activity
+
+Clicking a notification should take the user to the correct location.
+
+Users should be able to:
+- Mark notifications as read
+- Mark all as read
+- Open the related activity
+- Manage notification preferences
+
+Notifications must persist across page reloads and devices.
+
+### B. Real-time website notifications
+
+When the recipient is online, deliver new notifications in real time.
+
+Use an appropriate real-time backend technology such as:
+- WebSockets
+- Socket.IO
+- Server-Sent Events
+- An existing supported real-time service
+
+Inspect the current backend before selecting the implementation.
+
+When a buyer sends a message, the seller should see:
+- A notification badge update
+- A new message in the conversation
+- A toast or notification popup where appropriate
+
+The recipient should not need to refresh the page.
+
+### C. Browser push notifications
+
+Implement browser push notifications for supported browsers.
+
+Support:
+- Notification permission request
+- Service worker
+- Push subscription
+- Secure subscription storage
+- Notification delivery
+- Notification click handling
+- Deep links to the relevant conversation or listing
+- Unsubscribe and notification preferences
+
+Do not request notification permission immediately on the first page load.
+
+Ask at an appropriate moment, such as after the user sends their first message or enables notifications in settings.
+
+Do not claim browser push works if the push provider or VAPID configuration is missing.
+
+### D. Mobile app notifications
+
+The same account and notification system must support the mobile app.
+
+If a native mobile app is already available, inspect its notification architecture.
+
+If the application is currently a web app or PWA, support the appropriate web push capabilities.
+
+For native mobile push, use an appropriate provider such as Firebase Cloud Messaging or Apple Push Notification service, depending on the existing app architecture.
+
+Do not pretend that a website notification automatically becomes a native app push notification.
+
+Use one notification backend and user identity system so notifications can be delivered across supported devices.
+
+### E. Offline notification delivery
+
+If a seller is offline when a buyer sends a message:
+- Save the message in the database.
+- Create a persistent notification.
+- Queue delivery where supported.
+- Deliver a push notification if the seller has a valid subscription.
+- Show the unread notification when the seller next opens the website or app.
+
+The message must not disappear because the recipient was offline.
+
+---
+
+# PHASE 3 — NOTIFICATIONS FOR ALL IMPORTANT MARKETPLACE EVENTS
+
+Create a unified notification system for buyers, sellers, staff, and the founder.
+
+## Buyer notifications
+
+- New seller reply
+- Order confirmation
+- Payment confirmation
+- Order dispatched
+- Order delivered
+- Order cancelled
+- Refund status
+- Wishlist item price change
+- Saved product availability
+- New message
+- Account verification status
+- Security alerts
+
+## Seller notifications
+
+- New buyer message
+- New order
+- Payment status update
+- Product approved or rejected
+- Listing published
+- Listing expiring
+- Product running low on inventory
+- Store verification status
+- Buyer review received
+- Refund or dispute update
+- Promotion ending
+- Seller account security alert
+
+## Classified advertiser notifications
+
+- New inquiry
+- New message
+- Listing approved or rejected
+- Listing expiring
+- Featured listing ending
+- Package usage update
+- Payment confirmation
+
+## Founder / Super Admin notifications
+
+- New user registration
+- New seller registration
+- New classified advertiser
+- New staff application
+- Staff approval request
+- Seller verification request
+- New reported listing
+- New reported user
+- Payment or transaction alert
+- Security alert
+- Important platform error
+- Unusual registration activity
+
+## Staff notifications
+
+Staff must only receive notifications related to their assigned responsibilities.
+
+For example:
+- Finance staff receive authorized finance alerts.
+- Compliance staff receive seller verification and moderation alerts.
+- Marketing staff receive campaign-related alerts.
+- Operations staff receive operational alerts.
+
+Do not expose private customer or financial data to staff without the appropriate permissions.
+
+---
+
+# PHASE 4 — FOUNDER DASHBOARD: COMPLETE USER ANALYTICS
+
+The Super Admin dashboard must show all users registered on ASKIA MARKET.
+
+Create a dedicated **Users** section.
+
+I want to see:
+
+- Total registered users
+- New users today
+- New users this week
+- New users this month
+- New users this year
+- Active users
+- Inactive users
+- Verified users
+- Unverified users
+- Suspended users
+- Deleted or deactivated accounts, where retained lawfully
+- Customers
+- Sellers
+- Classified advertisers
+- Staff members
+- Pending staff applications
+
+Create useful charts:
+- User registration over time
+- Monthly user growth
+- Account type distribution
+- Verification status distribution
+- Active versus inactive users
+- Registration source, such as Google, Facebook, email, or phone
+
+Use real database data.
+
+Do not generate fake analytics or hardcode sample statistics into the production dashboard.
+
+Use clearly labeled demo data only in development.
+
+## User management
+
+The founder must be able to:
+- Search users
+- Filter users by account type
+- Filter by registration date
+- Filter by verification status
+- View account details
+- View account activity
+- View authentication methods
+- View seller/classified profile where applicable
+- Suspend or reactivate an account
+- Revoke sessions
+- Review reports
+- Review account verification
+- View audit history
+
+Respect privacy and least-privilege access.
+
+Do not expose passwords, OTPs, full NINs, OAuth secrets, or private authentication tokens in the user management interface.
+
+---
+
+# PHASE 5 — ORGANIZE THE ADMIN DASHBOARD INTO PROPER SECTIONS
+
+The current administration interface must feel like a professional marketplace management system.
+
+Do not place every function into one long list.
+
+Create clear navigation sections.
+
+Suggested Super Admin navigation:
+
+## Overview
+- Platform summary
+- Sales overview
+- User growth
+- Pending actions
+- Important alerts
+
+## Users
+- All Users
+- Customers
+- Sellers
+- Classified Advertisers
+- Verification
+- Suspended Accounts
+
+## Staff
+- Staff Directory
+- Staff Applications
+- Roles & Permissions
+- Departments
+- Staff Activity
+- Staff Compensation, if the existing implementation supports it
+
+## Marketplace
+- Products
+- Categories
+- Product Reviews
+- Inventory
+- Featured Products
+- Storefronts
+
+## Classifieds
+- All Classified Ads
+- Pending Listings
+- Reported Listings
+- Featured Classifieds
+- Packages
+- Moderation
+
+## Orders & Payments
+- Orders
+- Transactions
+- Payment Verification
+- Refunds
+- Escrow
+- Seller Payouts
+- Reconciliation
+
+## Messages & Notifications
+- Notification Overview
+- User Reports
+- Message Reports
+- Notification Delivery Status
+
+## Marketing
+- Promotions
+- Campaigns
+- Featured Placement
+- Coupons
+- Deals
+
+## Platform Settings
+- Account Settings
+- Authentication Providers
+- Verification Providers
+- Notification Settings
+- Payment Providers
+- Platform Policies
+- Audit Logs
+- Security Settings
+
+Only include features that actually exist or can be implemented properly.
+
+Do not add empty dashboard tabs that look functional but do nothing.
+
+The founder must have a clear view of all users and all platform operations, subject to legitimate privacy requirements.
+
+Staff must see only the sections permitted by their assigned roles.
+
+---
+
+# PHASE 6 — TEMU-STYLE PRODUCT DISCOVERY AND PRODUCT DETAILS
+
+I want ASKIA MARKET's shopping experience to feel like a real modern marketplace.
+
+The current product cards and listing layout need to be reviewed.
+
+Use the visual quality and shopping usability of major marketplaces as inspiration, but do not copy their logos, proprietary assets, or exact branded layouts.
+
+## Product listing cards
+
+Create polished, correctly sized product cards.
+
+They must:
+- Fit mobile screens
+- Use consistent image ratios
+- Display clear product images
+- Show product name
+- Show current price
+- Show original price when applicable
+- Show genuine discounts
+- Show seller or store name
+- Show verified badge only when valid
+- Show availability
+- Show delivery information where supported
+- Show ratings only when actual reviews exist
+- Provide wishlist controls
+- Provide quick-view or product-detail navigation
+- Avoid oversized cards
+- Avoid unnecessary empty space
+- Avoid excessive text
+
+The product grid should adapt naturally:
+
+- Mobile: compact 2-column grid where suitable
+- Tablet: 2–4 columns depending on width
+- Desktop: responsive multi-column grid
+
+Do not make mobile product cards too large or force users to scroll horizontally.
+
+## Product detail page
+
+Give users the ability to inspect a product properly.
+
+Support:
+- Multiple product images
+- Image gallery
+- Thumbnail navigation
+- Main image viewer
+- Image zoom where appropriate
+- Swipe between images on mobile
+- Product specifications
+- Description
+- Price
+- Genuine discounts
+- Inventory status
+- Seller information
+- Seller verification status
+- Delivery information
+- Product reviews
+- Questions and answers
+- Related products
+- Recently viewed products
+- Wishlist
+- Share product
+- Report listing
+- Chat with seller
+- Add to cart
+- Buy now, where supported
+
+Allow sellers to upload multiple images showing different views of a product.
+
+Do not reuse one image as multiple fake product angles.
+
+If the product has only one image, display only the available image.
+
+## Product view counts
+
+Track how many times a product is viewed.
+
+Use meaningful view tracking:
+- Unique views where feasible
+- Total views
+- Time range
+- Product-specific analytics
+- Seller dashboard analytics
+- Founder analytics
+
+Do not inflate counts through repeated automatic requests or every component render.
+
+Use appropriate server-side tracking and abuse protection.
+
+---
+
+# PHASE 7 — POLISHED MARKETPLACE DESIGN
+
+I want ASKIA MARKET to feel like a genuine, premium marketplace—not a generic AI-generated template.
+
+Every important interaction should feel real and intentional.
+
+Improve:
+- Typography
+- Spacing
+- Product cards
+- Buttons
+- Forms
+- Navigation
+- Search
+- Filters
+- Product detail pages
+- Seller storefronts
+- Customer dashboard
+- Admin dashboard
+- Empty states
+- Loading states
+- Error states
+- Confirmation dialogs
+- Notifications
+- Mobile interactions
+
+Use the ASKIA black-and-gold identity with appropriate white and neutral backgrounds.
+
+Do not make every component gold.
+
+Use gold as an accent for important actions, branding, and meaningful highlights.
+
+Avoid:
+- Excessive gradients
+- Random glowing effects
+- Generic AI-generated icons
+- Repeated placeholder cards
+- Fake statistics
+- Unnecessary decorative sections
+- Empty pages
+- Excessive text on mobile
+- Inconsistent card sizes
+- Buttons that do nothing
+- Unexplained technical terms
+- Overly complicated navigation
+
+Use a consistent design system with reusable components.
+
+All interactive elements must have proper hover, focus, active, disabled, loading, and error states.
+
+The marketplace should feel original, trustworthy, and professionally designed.
+
+---
+
+# PHASE 8 — SIMPLIFY THE MOBILE HOMEPAGE
+
+For mobile users, remove the unnecessary large marketing content currently appearing above the product listings.
+
+Remove or substantially simplify the following mobile sections:
+
+- "Verified Corporate Merchants & Direct Classified Ads"
+- Long ASKIA MARKET introduction paragraphs
+- Repeated "Your World. Your Market." headings
+- Large marketing descriptions
+- Repeated verified-store explanations
+- Excessive hero content
+- Large promotional text blocks
+- Unnecessary homepage descriptions
+
+Do not remove important legal, safety, verification, or payment information from the platform entirely.
+
+Move relevant explanations to:
+- Safety & Policy
+- About
+- Seller onboarding
+- Product details
+- Verification pages
+- Footer links
+
+## Mobile homepage structure
+
+The mobile homepage should prioritize shopping.
+
+Suggested order:
+
+1. Compact brand header
+2. Search bar
+3. Category shortcuts
+4. Deals or promotions
+5. Product grid
+6. Classified listings section
+7. Featured products
+8. Recently viewed products, where available
+
+The homepage should feel like a marketplace—not a long company presentation.
+
+Keep the desktop homepage polished as well.
+
+Do not simply hide content without ensuring the page still makes sense.
+
+---
+
+# PHASE 9 — SEARCH, FILTERS, AND DISCOVERY
+
+Improve product search and listing discovery.
+
+Support:
+- Search by product name
+- Search by category
+- Search by brand
+- Search by seller
+- Search by location
+- Search suggestions
+- Recent searches
+- Popular searches based on real data
+- Sorting by price
+- Sorting by popularity
+- Sorting by newest
+- Sorting by rating where reviews exist
+- Filtering by category
+- Filtering by location
+- Filtering by price range
+- Filtering by verified seller
+- Filtering by availability
+- Filtering by condition
+
+Keep filters responsive.
+
+On mobile, use a compact filter drawer or bottom sheet.
+
+Do not allow filter panels to create page-level horizontal scrolling.
+
+---
+
+# PHASE 10 — MARKETPLACE FEATURES FOR A MODERN 2027 PLATFORM
+
+Inspect existing functionality first.
+
+Implement useful features that are missing, but do not create an enormous collection of fake or unfinished features.
+
+Prioritize:
+
+## Shopping
+- Wishlist
+- Recently viewed products
+- Product comparison
+- Saved searches
+- Price-drop alerts
+- Back-in-stock notifications
+- Product questions and answers
+- Genuine product reviews
+- Seller ratings
+- Related products
+- Personalized recommendations based on actual activity and user consent
+
+## Seller tools
+- Product analytics
+- Product view counts
+- Inventory management
+- Low-stock alerts
+- Order management
+- Buyer messaging
+- Store customization
+- Store followers
+- Promotion management
+- Sales reports
+- Listing performance
+
+## Classifieds
+- Listing expiration
+- Listing renewal
+- Featured ads
+- Saved listings
+- Seller profile
+- Inquiry notifications
+- Report listing
+- Duplicate listing detection where feasible
+- Listing moderation
+- Safe-contact guidance
+
+## Trust and safety
+- Report seller
+- Report product
+- Report message
+- Fraud warning system
+- Seller verification
+- Buyer protection information
+- Review moderation
+- Account security alerts
+- Suspicious activity detection
+- Clear dispute and refund processes
+
+## Accessibility and quality
+- Keyboard navigation
+- Accessible labels
+- Good color contrast
+- Responsive design
+- Fast image loading
+- Lazy loading
+- Image optimization
+- Good empty states
+- Good error messages
+- Appropriate loading skeletons
+
+Do not claim ASKIA MARKET has features that have not been implemented.
+
+Do not copy another platform's proprietary assets or claim to have every feature of Jiji, Temu, Amazon, Alibaba, or AliExpress without verifying the implementation.
+
+The objective is to create a superior and trustworthy ASKIA MARKET experience, not to add a long list of unfinished features.
+
+---
+
+# PHASE 11 — APP ICON, FAVICON, AND WELCOME EXPERIENCE
+
+Create a premium ASKIA MARKET visual identity for:
+- App icon
+- Website favicon
+- PWA icon
+- Welcome screen
+- Loading screen
+- Login screen
+- Mobile home-screen installation
+
+The icon should feel original and recognizable.
+
+Use:
+- Black background
+- Liquid gold accent
+- A strong, elegant ASKIA-inspired symbol
+- Clean geometry
+- Excellent visibility at small sizes
+- Professional marketplace identity
+
+Avoid generic shopping-cart clipart.
+
+Do not use random stock icons.
+
+Use the same brand identity across:
+- Website
+- PWA
+- Mobile app
+- Login experience
+- Browser tab
+- Loading screen
+
+If the project already contains an icon asset, inspect and improve it rather than creating conflicting icon systems.
+
+---
+
+# PHASE 12 — DATA, SECURITY, AND NOTIFICATION RELIABILITY
+
+All notifications, users, product views, and analytics must use the actual backend and database.
+
+Do not rely on localStorage as the source of truth for:
+- User accounts
+- Roles
+- Staff permissions
+- Notifications
+- Message delivery
+- User analytics
+- Product view analytics
+- Payment status
+- Verification status
+
+Use the existing database and backend architecture.
+
+Inspect migrations before changing the schema.
+
+Preserve existing users and records.
+
+Use:
+- Server-side authorization
+- Secure authentication sessions
+- Rate limiting
+- Input validation
+- Database constraints
+- Notification deduplication
+- Retry handling where appropriate
+- Audit logs for privileged actions
+- Secure push subscription storage
+- Appropriate privacy controls
+
+Ensure that:
+- A user can only read their own private notifications.
+- A seller cannot read another seller's private messages.
+- Staff cannot access unauthorized user information.
+- The founder's permissions are server-enforced.
+- Notification endpoints cannot be abused to send arbitrary messages.
+- A notification cannot grant access to a private conversation without authorization.
+
+Do not expose secrets in frontend code.
+
+Do not create fake data to make analytics look impressive.
+
+---
+
+# PHASE 13 — MOBILE RESPONSIVENESS
+
+Test the entire application at:
+- 320px
+- 360px
+- 375px
+- 390px
+- 414px
+
+Test:
+- Homepage
+- Search
+- Product cards
+- Product detail page
+- Image gallery
+- Authentication
+- User profile
+- Messaging
+- Notification drawer
+- Customer dashboard
+- Seller dashboard
+- Classified dashboard
+- Staff dashboard
+- Founder dashboard
+
+The page must not have unnecessary horizontal scrolling.
+
+Fix the actual causes of overflow instead of hiding all overflow with CSS.
+
+Tables may use a local horizontal scroll container when necessary, but the entire page must remain within the screen width.
+
+---
+
+# PHASE 14 — TESTING AND FINAL REPORT
+
+Test the actual application.
+
+Required tests:
+
+1. User can register with email.
+2. User can register with phone number.
+3. Google authentication works in the deployed environment.
+4. Facebook authentication works if fully configured.
+5. Account linking does not create duplicates or allow account takeover.
+6. Buyer can message a seller.
+7. Seller receives an in-app notification.
+8. Seller receives a real-time notification while online.
+9. Seller receives browser push where configured and permission is granted.
+10. Offline notification is retained and available later.
+11. Notification click opens the correct conversation.
+12. Notification unread count updates correctly.
+13. Founder sees real user registration analytics.
+14. Founder can search and manage users.
+15. Staff see only their authorized dashboard sections.
+16. Product gallery displays the correct uploaded images.
+17. Product view counts are recorded correctly.
+18. Product cards fit mobile screens.
+19. The homepage is simplified on mobile.
+20. Existing marketplace features remain functional.
+21. Existing image-loading fix remains functional.
+22. No fake notification, authentication, or analytics systems remain in production.
+
+At the end, report:
+
+- Files changed
+- Features completed
+- Features preserved
+- Database changes
+- Authentication providers configured
+- Notification channels implemented
+- Required environment variables
+- Required provider credentials
+- Tests actually performed
+- Tests that could not be performed
+- Remaining deployment steps
+
+Do not claim success based only on a successful build.
+
+If push notifications, Facebook authentication, SMS, email, or another provider requires credentials that are unavailable, clearly state what remains to be configured.
+
+**Priority order:**
+1. Universal user accounts and authentication
+2. Real-time buyer-to-seller messaging notifications
+3. Persistent in-app notifications
+4. Browser push and mobile push architecture
+5. Founder user analytics and management
+6. Organized admin dashboard
+7. Premium product discovery and product details
+8. Mobile homepage simplification
+9. UI polish and icon design
+10. Additional modern marketplace features
+
+Inspect the current code first. Preserve working functionality, implement the actual missing features, and verify the deployed behavior wherever possible.
