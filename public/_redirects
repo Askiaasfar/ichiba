@@ -1,1 +1,5 @@
-/*    /index.html   200
+# Netlify API Proxy Route (Routes /api/* to production backend server with streaming support)
+/api/*  https://ais-dev-lhxqmcs4pkbt7hegjjbrdg-519153662077.europe-west2.run.app/api/:splat  200!
+
+# SPA Client-Side Routing Fallback
+/*      /index.html               200

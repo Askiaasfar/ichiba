@@ -220,14 +220,18 @@ const MainMarketplaceApp: React.FC = () => {
         onSelectCategorySection={() => {
           setActiveNavTab('marketplace');
           setShowCustomerPortal(false);
-          const el = document.getElementById('categories-filter-bar');
+          const el = document.getElementById('marketplace-toolbar');
           if (el) el.scrollIntoView({ behavior: 'smooth' });
         }}
         onOpenNotifications={() => setIsNotificationsOpen(true)}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
       />
 
-      {/* Main Content Area */}
-      <main className="flex-1 pb-16">
+      {/* Main Content Area (with safe-area bottom padding for mobile bottom bar) */}
+      <main className="flex-1 pb-28 md:pb-16">
         {/* Customer Portal view for buyer role */}
         {showCustomerPortal && currentRole === 'buyer' && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
@@ -343,34 +347,37 @@ const MainMarketplaceApp: React.FC = () => {
           <>
             {/* View 1: Main Marketplace Feed */}
             {activeNavTab === 'marketplace' && (
-              <div className="space-y-8">
-                {/* Hero Showcase with Value Proposition */}
+              <div className="space-y-6">
+                {/* Hero Showcase with Value Proposition & Instant Category Shortcuts */}
                 <MarketplaceHero
                   onSelectFilter={(f) => setFeedTypeFilter(f)}
                   activeFilter={feedTypeFilter}
+                  onSelectCategory={(cat) => setSelectedCategory(cat)}
                 />
 
-                {/* Filter and Search Bar */}
-                <div className="max-w-7xl mx-auto px-4 sm:px-6">
-                  <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs space-y-4">
-                    {/* Top Row: Search & Category / Location Selects */}
-                    <div className="flex flex-col md:flex-row gap-3">
+                {/* Practical Marketplace Toolbar (Amazon / Jiji / Temu style) */}
+                <div id="marketplace-toolbar" className="max-w-7xl mx-auto px-3 sm:px-6 scroll-mt-20">
+                  <div className="bg-white rounded-2xl border border-neutral-300 p-3 sm:p-4 shadow-sm space-y-3">
+                    {/* Top Row: Category, Location & Sort Filters */}
+                    <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+                      {/* Secondary Quick Search (Desktop fallback / local filter) */}
                       <div className="relative flex-1">
-                        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <Search className="w-4 h-4 text-neutral-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          placeholder="Search verified products, laptops, cars, real estate, generators, phones..."
-                          className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-emerald-500"
+                          placeholder="Search verified products, laptops, cars, real estate..."
+                          className="w-full pl-10 pr-4 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-900 placeholder-neutral-500 focus:outline-none focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]"
                         />
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="flex flex-wrap sm:flex-nowrap gap-2">
+                        {/* Category Dropdown */}
                         <select
                           value={selectedCategory}
                           onChange={(e) => setSelectedCategory(e.target.value)}
-                          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-emerald-500"
+                          className="flex-1 sm:flex-none px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 font-medium focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                         >
                           <option value="all">All Categories</option>
                           <option value="Electronics & Computers">Electronics & Computers</option>
@@ -378,13 +385,14 @@ const MainMarketplaceApp: React.FC = () => {
                           <option value="Vehicles & Automotive">Vehicles & Automotive</option>
                           <option value="Solar & Renewable Power">Solar & Renewable Power</option>
                           <option value="Real Estate & Rentals">Real Estate & Rentals</option>
-                          <option value="Home & Industrial Machinery">Home & Industrial Machinery</option>
+                          <option value="Home & Industrial Machinery">Industrial Machinery</option>
                         </select>
 
+                        {/* Location Dropdown */}
                         <select
                           value={selectedState}
                           onChange={(e) => setSelectedState(e.target.value)}
-                          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-emerald-500"
+                          className="flex-1 sm:flex-none px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 font-medium focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                         >
                           <option value="all">All Locations</option>
                           <option value="Lagos">Lagos State</option>
@@ -398,7 +406,7 @@ const MainMarketplaceApp: React.FC = () => {
                         <select
                           value={sortBy}
                           onChange={(e: any) => setSortBy(e.target.value)}
-                          className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-700 focus:outline-emerald-500 font-medium"
+                          className="w-full sm:w-auto px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 font-bold focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                           title="Sort listings"
                         >
                           <option value="recommended">Featured &amp; Recommended</option>
@@ -410,36 +418,36 @@ const MainMarketplaceApp: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Segmented Filter Controls */}
-                    <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-100">
-                      <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-lg overflow-x-auto max-w-full">
+                    {/* Segmented Filter Pills */}
+                    <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-neutral-200">
+                      <div className="flex items-center gap-1.5 p-1 bg-neutral-100 rounded-xl overflow-x-auto max-w-full no-scrollbar">
                         <button
                           onClick={() => setFeedTypeFilter('all')}
-                          className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                             feedTypeFilter === 'all'
-                              ? 'bg-white text-slate-900 shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
+                              ? 'bg-black text-white shadow-sm'
+                              : 'text-neutral-700 hover:text-black hover:bg-neutral-200'
                           }`}
                         >
                           All ({combinedListings.length})
                         </button>
                         <button
                           onClick={() => setFeedTypeFilter('verified')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                             feedTypeFilter === 'verified'
-                              ? 'bg-emerald-600 text-white shadow-xs'
-                              : 'text-emerald-800 hover:text-emerald-950'
+                              ? 'bg-black text-[#D4AF37] border border-[#D4AF37]/50 shadow-sm'
+                              : 'text-neutral-700 hover:text-black hover:bg-neutral-200'
                           }`}
                         >
-                          <ShieldCheck className="w-3.5 h-3.5" />
+                          <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
                           <span>Verified Store Products ({products.length})</span>
                         </button>
                         <button
                           onClick={() => setFeedTypeFilter('advertisement')}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                             feedTypeFilter === 'advertisement'
-                              ? 'bg-amber-600 text-white shadow-xs'
-                              : 'text-amber-800 hover:text-amber-950'
+                              ? 'bg-amber-600 text-white shadow-sm'
+                              : 'text-neutral-700 hover:text-black hover:bg-neutral-200'
                           }`}
                         >
                           <Megaphone className="w-3.5 h-3.5" />
@@ -447,30 +455,46 @@ const MainMarketplaceApp: React.FC = () => {
                         </button>
                         <button
                           onClick={() => setFeedTypeFilter('featured')}
-                          className={`flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md transition-colors whitespace-nowrap shrink-0 ${
+                          className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 cursor-pointer ${
                             feedTypeFilter === 'featured'
-                              ? 'bg-slate-900 text-white shadow-xs'
-                              : 'text-slate-600 hover:text-slate-900'
+                              ? 'bg-[#D4AF37] text-black shadow-sm'
+                              : 'text-neutral-700 hover:text-black hover:bg-neutral-200'
                           }`}
                         >
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                          <span>Featured Spotlight</span>
+                          <Sparkles className="w-3.5 h-3.5 text-black" />
+                          <span>Spotlight Deals</span>
                         </button>
                       </div>
 
-                      <span className="text-xs text-slate-500 font-mono-numbers">
-                        Showing <strong>{filteredListings.length}</strong> items
-                      </span>
+                      <div className="flex items-center gap-2 text-xs text-neutral-600 font-mono-numbers">
+                        {(searchQuery || selectedCategory !== 'all' || selectedState !== 'all' || feedTypeFilter !== 'all') && (
+                          <button
+                            onClick={() => {
+                              setSearchQuery('');
+                              setSelectedCategory('all');
+                              setSelectedState('all');
+                              setFeedTypeFilter('all');
+                              setSortBy('recommended');
+                            }}
+                            className="text-red-600 hover:underline font-bold text-[11px] cursor-pointer"
+                          >
+                            Reset Filters
+                          </button>
+                        )}
+                        <span>
+                          Showing <strong>{filteredListings.length}</strong> items
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Listings Grid (2-Column Mobile, 4-Column Desktop) */}
+                {/* Listings Grid: 2-Column Mobile (320px-430px), 3-Column Tablet, 4/5-Column Desktop */}
                 <div className="max-w-7xl mx-auto px-3 sm:px-6">
                   {filteredListings.length === 0 ? (
-                    <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-500 space-y-3">
-                      <Filter className="w-8 h-8 mx-auto text-slate-300" />
-                      <p className="font-semibold text-slate-800 text-sm">No items found matching your filters.</p>
+                    <div className="p-10 text-center bg-white rounded-2xl border border-neutral-300 text-neutral-600 space-y-3">
+                      <Filter className="w-8 h-8 mx-auto text-neutral-400" />
+                      <p className="font-bold text-neutral-900 text-sm">No items found matching your filters.</p>
                       <button
                         onClick={() => {
                           setSearchQuery('');
@@ -479,13 +503,13 @@ const MainMarketplaceApp: React.FC = () => {
                           setFeedTypeFilter('all');
                           setSortBy('recommended');
                         }}
-                        className="px-3.5 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-lg hover:bg-slate-800 transition-colors"
+                        className="px-4 py-2 bg-black hover:bg-[#D4AF37] text-white hover:text-black text-xs font-bold rounded-xl transition-colors cursor-pointer"
                       >
                         Reset All Filters
                       </button>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
+                    <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
                       {filteredListings.map((item) => (
                         <ListingCard
                           key={`${item.type}-${item.data.id}`}
@@ -583,8 +607,8 @@ const MainMarketplaceApp: React.FC = () => {
                 {/* Mandatory Caution Header */}
                 <CautionNoticeBanner variant="full" />
 
-                {/* Advertisements Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
+                {/* Advertisements Grid (2-Column Mobile) */}
+                <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 pt-2">
                   {advertisements
                     .filter((a) => a.status === 'active')
                     .map((ad) => (

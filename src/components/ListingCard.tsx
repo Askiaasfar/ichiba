@@ -1,15 +1,14 @@
 import React from 'react';
 import { Product, Advertisement } from '../types/marketplace';
-import { 
-  ShieldCheck, 
-  AlertTriangle, 
-  Sparkles, 
-  MapPin, 
-  ShoppingBag, 
-  MessageCircle, 
-  Heart, 
-  Star, 
-  Eye,
+import {
+  ShieldCheck,
+  AlertTriangle,
+  Sparkles,
+  MapPin,
+  ShoppingBag,
+  MessageCircle,
+  Heart,
+  Star,
   CheckCircle2
 } from 'lucide-react';
 import { useMarketplace } from '../context/MarketplaceContext';
@@ -30,122 +29,107 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
   if (item.type === 'product') {
     const product = item.data;
 
-    // Calculate discount percent if not explicitly provided
+    // Calculate discount percent
     const originalPrice = product.originalPrice || (product.salePrice ? product.price : 0);
     const currentPrice = product.salePrice ? product.salePrice : product.price;
     const discountPercent = product.discountPercent || (originalPrice > currentPrice
       ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
       : 0);
 
-    const formatViewCount = (views?: number) => {
-      if (!views) return null;
-      if (views >= 1000) return `${(views / 1000).toFixed(1)}k`;
-      return `${views}`;
-    };
+    const isWishlisted = Boolean(currentUser?.wishlist?.includes(product.id));
 
     return (
       <div 
         onClick={() => onSelect(item)}
-        className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden flex flex-col hover:border-[#D4AF37]/80 hover:shadow-lg transition-all duration-300 cursor-pointer relative"
+        className="group bg-white rounded-2xl border border-neutral-200 overflow-hidden flex flex-col hover:border-[#D4AF37] hover:shadow-xl transition-all duration-200 cursor-pointer relative"
       >
-        {/* Badges on Image */}
-        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start">
+        {/* Top Badges on Image */}
+        <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 items-start pointer-events-none">
           {product.isFeatured && (
-            <span className="flex items-center gap-1 bg-[#D4AF37] text-black font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-xs font-mono-numbers">
-              <Sparkles className="w-2.5 h-2.5" />
+            <span className="flex items-center gap-1 bg-[#D4AF37] text-black font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-sm font-mono-numbers">
+              <Sparkles className="w-2.5 h-2.5 fill-black" />
               <span>Featured</span>
             </span>
           )}
           {discountPercent > 0 && (
-            <span className="bg-red-600 text-white font-black text-[10px] px-1.5 py-0.5 rounded shadow-xs font-mono-numbers">
+            <span className="bg-red-600 text-white font-black text-[10px] px-1.5 py-0.5 rounded shadow-sm font-mono-numbers">
               -{discountPercent}%
             </span>
           )}
         </div>
 
-        {/* Wishlist Heart Button */}
+        {/* Wishlist Button */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             toggleWishlist(product.id);
           }}
-          className={`absolute top-2 right-2 z-10 p-1.5 rounded-full backdrop-blur-md transition-colors ${
-            currentUser?.wishlist?.includes(product.id)
-              ? 'bg-rose-50 text-rose-600 shadow-xs'
-              : 'bg-black/40 text-white hover:bg-black/70 hover:text-rose-400'
+          className={`absolute top-2 right-2 z-10 p-2 rounded-full transition-all shadow-sm ${
+            isWishlisted
+              ? 'bg-rose-50 text-rose-600 border border-rose-200'
+              : 'bg-black/50 text-white hover:bg-black hover:text-rose-400'
           }`}
-          title={currentUser?.wishlist?.includes(product.id) ? 'Saved' : 'Save to wishlist'}
+          title={isWishlisted ? 'Saved to Wishlist' : 'Save to Wishlist'}
+          aria-label="Wishlist"
         >
-          <Heart className={`w-3.5 h-3.5 ${currentUser?.wishlist?.includes(product.id) ? 'fill-rose-600' : ''}`} />
+          <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-rose-600' : ''}`} />
         </button>
 
         {/* Product Image */}
-        <div className="relative aspect-square sm:aspect-4/3 bg-neutral-100 overflow-hidden">
+        <div className="relative aspect-square bg-[#F1F3F5] overflow-hidden">
           <img
             src={normalizeImageUrl(product.imageUrl, FALLBACK_PRODUCT_IMAGE)}
             alt={product.title}
-            className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             onError={(e) => handleImageError(e, FALLBACK_PRODUCT_IMAGE)}
             referrerPolicy="no-referrer"
             loading="lazy"
           />
 
-          {/* Bottom pills on image */}
-          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
-            {product.condition && (
-              <span className="bg-black/75 backdrop-blur-xs text-white text-[9px] font-medium px-1.5 py-0.5 rounded tracking-wide">
-                {product.condition}
-              </span>
-            )}
-            {product.viewCount && product.viewCount > 0 ? (
-              <span className="ml-auto bg-black/75 backdrop-blur-xs text-neutral-300 text-[9px] font-medium px-1.5 py-0.5 rounded flex items-center gap-1 font-mono-numbers">
-                <Eye className="w-2.5 h-2.5 text-[#D4AF37]" />
-                {formatViewCount(product.viewCount)}
-              </span>
-            ) : null}
-          </div>
+          {/* Condition Tag */}
+          {product.condition && (
+            <span className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-xs text-white text-[9px] font-medium px-2 py-0.5 rounded pointer-events-none">
+              {product.condition}
+            </span>
+          )}
         </div>
 
-        {/* Product Details */}
-        <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2.5">
-          <div className="space-y-1.5">
+        {/* Product Info */}
+        <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2">
+          <div className="space-y-1">
             {/* Category & Rating */}
             <div className="flex items-center justify-between text-[10px]">
-              <span className="font-semibold text-neutral-400 uppercase tracking-widest truncate">
+              <span className="font-bold text-neutral-400 uppercase tracking-wider truncate max-w-[65%]">
                 {product.category}
               </span>
-              <div className="flex items-center gap-1 text-amber-500 font-bold shrink-0">
+              <div className="flex items-center gap-0.5 text-amber-500 font-bold shrink-0">
                 <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                 <span>{product.rating ? product.rating.toFixed(1) : '4.9'}</span>
-                {product.reviewsCount && (
-                  <span className="text-neutral-400 font-normal">({product.reviewsCount})</span>
-                )}
               </div>
             </div>
 
-            {/* Title */}
-            <h3 className="text-xs sm:text-sm font-semibold text-neutral-900 line-clamp-2 leading-snug group-hover:text-[#9A7D0A] transition-colors">
+            {/* Title (2 lines max) */}
+            <h3 className="text-xs sm:text-sm font-semibold text-neutral-900 line-clamp-2 leading-tight group-hover:text-[#9A7D0A] transition-colors">
               {product.title}
             </h3>
 
-            {/* Verified Merchant Badge */}
-            <div className="flex items-center gap-1 text-[11px] text-neutral-700 bg-neutral-50 px-2 py-0.5 rounded border border-neutral-200">
-              <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
-              <span className="font-medium text-neutral-800 truncate">{product.shopName}</span>
-              <span className="text-[9px] text-[#9A7D0A] font-bold shrink-0 ml-auto flex items-center gap-0.5">
+            {/* Verified Merchant Trust Tag */}
+            <div className="flex items-center gap-1 text-[10px] text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded border border-neutral-200">
+              <ShieldCheck className="w-3 h-3 text-[#D4AF37] shrink-0" />
+              <span className="font-semibold text-neutral-800 truncate">{product.shopName}</span>
+              <span className="text-[9px] text-emerald-700 font-bold shrink-0 ml-auto flex items-center gap-0.5">
                 <CheckCircle2 className="w-2.5 h-2.5" /> Verified
               </span>
             </div>
           </div>
 
-          {/* Pricing & Actions */}
-          <div className="pt-2 border-t border-neutral-100 flex items-center justify-between gap-1.5">
-            <div className="min-w-0">
-              <span className="text-[9px] text-neutral-400 block tracking-wide uppercase">ASKIA Price</span>
+          {/* Price & Action Row */}
+          <div className="pt-2 border-t border-neutral-100 flex items-center justify-between gap-1">
+            <div className="min-w-0 flex-1">
               {originalPrice > currentPrice ? (
-                <div className="flex items-baseline gap-1 flex-wrap">
-                  <span className="text-sm sm:text-base font-bold text-neutral-950 font-mono-numbers">
+                <div className="flex flex-col">
+                  <span className="text-xs sm:text-sm font-bold text-neutral-950 font-mono-numbers truncate">
                     ₦{currentPrice.toLocaleString()}
                   </span>
                   <span className="text-[10px] text-neutral-400 line-through font-mono-numbers">
@@ -153,25 +137,25 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
                   </span>
                 </div>
               ) : (
-                <div className="text-sm sm:text-base font-bold text-neutral-950 font-mono-numbers truncate">
+                <div className="text-xs sm:text-sm font-bold text-neutral-950 font-mono-numbers truncate">
                   ₦{currentPrice.toLocaleString()}
                 </div>
               )}
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
-              {/* Chat with Seller */}
+              {/* Chat Button */}
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   openChat(item);
                 }}
-                className="p-1.5 sm:px-2.5 sm:py-1.5 bg-neutral-100 hover:bg-[#D4AF37]/10 text-neutral-700 hover:text-black rounded-lg text-xs font-medium transition-colors border border-transparent hover:border-[#D4AF37]/30 flex items-center gap-1 cursor-pointer"
+                className="p-1.5 sm:px-2 sm:py-1.5 bg-neutral-100 hover:bg-[#D4AF37]/20 text-neutral-700 hover:text-black rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 cursor-pointer"
                 title="Chat with Seller"
               >
                 <MessageCircle className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span className="hidden sm:inline text-[11px]">Chat</span>
+                <span className="hidden sm:inline text-[10px]">Chat</span>
               </button>
 
               {/* Add to Cart */}
@@ -181,8 +165,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
                   e.stopPropagation();
                   addToCart(product, 1);
                 }}
-                className="p-1.5 sm:p-2 bg-black text-white hover:bg-[#D4AF37] hover:text-black rounded-lg transition-colors shadow-xs cursor-pointer"
-                title="Add to cart"
+                className="p-1.5 sm:p-2 bg-black hover:bg-[#D4AF37] text-white hover:text-black rounded-lg transition-colors shadow-sm cursor-pointer"
+                title="Add to Shopping Cart"
               >
                 <ShoppingBag className="w-3.5 h-3.5" />
               </button>
@@ -198,84 +182,82 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
   return (
     <div 
       onClick={() => onSelect(item)}
-      className="group bg-white rounded-2xl border border-amber-200/90 overflow-hidden flex flex-col hover:border-amber-400 hover:shadow-lg transition-all duration-300 cursor-pointer relative"
+      className="group bg-white rounded-2xl border border-amber-200 overflow-hidden flex flex-col hover:border-amber-400 hover:shadow-xl transition-all duration-200 cursor-pointer relative"
     >
       {/* Featured Tag */}
       {ad.isFeatured && (
-        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-[#D4AF37] text-black font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-xs font-mono-numbers">
-          <Sparkles className="w-2.5 h-2.5 text-black" />
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1 bg-[#D4AF37] text-black font-black text-[9px] uppercase tracking-wider px-2 py-0.5 rounded shadow-sm font-mono-numbers">
+          <Sparkles className="w-2.5 h-2.5 fill-black" />
           <span>Featured Ad</span>
         </div>
       )}
 
       {/* Classified Image */}
-      <div className="relative aspect-square sm:aspect-4/3 bg-neutral-100 overflow-hidden">
+      <div className="relative aspect-square bg-[#F1F3F5] overflow-hidden">
         <img
           src={normalizeImageUrl(ad.imageUrl, FALLBACK_VEHICLE_IMAGE)}
           alt={ad.title}
-          className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           onError={(e) => handleImageError(e, FALLBACK_VEHICLE_IMAGE)}
           referrerPolicy="no-referrer"
           loading="lazy"
         />
-        <div className="absolute bottom-2 right-2 bg-amber-950/80 backdrop-blur-xs text-amber-200 text-[9px] font-medium px-1.5 py-0.5 rounded tracking-wide">
+        <div className="absolute bottom-2 right-2 bg-amber-950/80 backdrop-blur-xs text-amber-200 text-[9px] font-semibold px-2 py-0.5 rounded">
           Classified Ad
         </div>
       </div>
 
-      {/* Ad Details */}
-      <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between space-y-2.5">
-        <div className="space-y-1.5">
+      {/* Ad Info */}
+      <div className="p-3 sm:p-3.5 flex-1 flex flex-col justify-between space-y-2">
+        <div className="space-y-1">
           {/* Category & Location */}
           <div className="flex items-center justify-between text-[10px] text-neutral-400">
-            <span className="uppercase tracking-widest font-semibold">{ad.category}</span>
-            <span className="flex items-center gap-0.5 text-neutral-500 font-medium">
-              <MapPin className="w-2.5 h-2.5 text-neutral-400" />
+            <span className="uppercase tracking-wider font-bold truncate max-w-[55%]">{ad.category}</span>
+            <span className="flex items-center gap-0.5 text-neutral-600 font-medium truncate max-w-[45%]">
+              <MapPin className="w-2.5 h-2.5 text-neutral-400 shrink-0" />
               {ad.city}, {ad.state}
             </span>
           </div>
 
           {/* Title */}
-          <h3 className="text-xs sm:text-sm font-semibold text-neutral-900 line-clamp-2 leading-snug group-hover:text-amber-800 transition-colors">
+          <h3 className="text-xs sm:text-sm font-semibold text-neutral-900 line-clamp-2 leading-tight group-hover:text-amber-800 transition-colors">
             {ad.title}
           </h3>
 
           {/* Advertiser attribution */}
-          <div className="text-[11px] text-neutral-500">
-            By <span className="text-neutral-800 font-medium">{ad.advertiserName}</span>
+          <div className="text-[10px] text-neutral-500 truncate">
+            By <strong className="text-neutral-800 font-medium">{ad.advertiserName}</strong>
           </div>
 
-          {/* Prominent Caution Notice */}
-          <div className="flex items-center gap-1 px-2 py-1 bg-amber-500/10 border border-amber-300/80 rounded-lg text-[10px] text-amber-950 font-medium leading-tight">
-            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
-            <span className="truncate">
-              <strong>Caution:</strong> Direct transaction · Inspect first
-            </span>
+          {/* Caution tag */}
+          <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded text-[9px] text-amber-900 font-medium truncate">
+            <AlertTriangle className="w-2.5 h-2.5 text-amber-600 shrink-0" />
+            <span className="truncate">Caution: Direct deal · Inspect first</span>
           </div>
         </div>
 
-        {/* Pricing & Chat with Seller Actions */}
-        <div className="pt-2 border-t border-neutral-100 flex items-center justify-between gap-1.5">
-          <div className="min-w-0">
-            <span className="text-[9px] text-neutral-400 block tracking-wide uppercase">
-              {ad.isNegotiable ? 'Asking (Negotiable)' : 'Asking Price'}
+        {/* Pricing & Chat Action */}
+        <div className="pt-2 border-t border-neutral-100 flex items-center justify-between gap-1">
+          <div className="min-w-0 flex-1">
+            <span className="text-[9px] text-neutral-400 block uppercase tracking-wide">
+              {ad.isNegotiable ? 'Negotiable' : 'Asking'}
             </span>
-            <div className="text-sm sm:text-base font-bold text-neutral-950 font-mono-numbers truncate">
+            <div className="text-xs sm:text-sm font-bold text-neutral-950 font-mono-numbers truncate">
               ₦{ad.price.toLocaleString()}
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="shrink-0">
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 openChat(item);
               }}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#0A0A0A] hover:bg-[#D4AF37] text-white hover:text-black font-semibold text-[11px] rounded-lg transition-colors shadow-xs cursor-pointer"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#0A0A0A] hover:bg-[#D4AF37] text-white hover:text-black font-bold text-[10px] rounded-lg transition-colors shadow-sm cursor-pointer"
               title="Chat directly with Advertiser"
             >
-              <MessageCircle className="w-3 h-3 text-[#D4AF37] group-hover:text-black" />
+              <MessageCircle className="w-3 h-3 text-[#D4AF37]" />
               <span>Chat</span>
             </button>
           </div>

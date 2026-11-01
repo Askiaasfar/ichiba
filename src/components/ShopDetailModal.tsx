@@ -120,7 +120,7 @@ export const ShopDetailModal: React.FC<ShopDetailModalProps> = ({
                 No products currently listed for this store.
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3">
                 {shopProducts.map((p) => (
                   <ListingCard
                     key={p.id}

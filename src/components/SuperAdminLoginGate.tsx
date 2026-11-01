@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { apiFetch, getApiUrl } from '../config/api';
 import { useMarketplace } from '../context/MarketplaceContext';
 import {
   ShieldAlert,
@@ -42,7 +43,7 @@ export const SuperAdminLoginGate: React.FC<SuperAdminLoginGateProps> = ({ onCanc
 
   // Check backend Google OAuth config & URL parameters on mount
   useEffect(() => {
-    fetch('/api/auth/google/config')
+    apiFetch('/api/auth/google/config')
       .then((r) => r.json())
       .then((data) => {
         setOauthConfig(data);
@@ -131,7 +132,7 @@ export const SuperAdminLoginGate: React.FC<SuperAdminLoginGateProps> = ({ onCanc
     if (oauthConfig?.configured && oauthConfig.clientId) {
       // Trigger genuine Google OAuth 2.0 redirect flow to accounts.google.com
       setIsAuthenticating(true);
-      window.location.href = '/api/auth/google/login';
+      window.location.href = getApiUrl('/api/auth/google/login');
       return;
     }
 

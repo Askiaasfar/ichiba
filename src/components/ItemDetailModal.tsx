@@ -8,20 +8,17 @@ import {
   Sparkles,
   MapPin,
   Phone,
-  Mail,
   ShoppingBag,
-  CheckCircle,
   Flag,
-  Share2,
   MessageCircle,
   Heart,
   Star,
   Truck,
   RotateCcw,
-  Shield,
-  Eye,
+  CheckCircle2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Shield
 } from 'lucide-react';
 import { CautionNoticeBanner } from './CautionNoticeBanner';
 import { normalizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE, FALLBACK_VEHICLE_IMAGE } from '../utils/imageUtils';
@@ -66,7 +63,6 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const ad = !isProduct ? item.data : null;
   const shop = isProduct ? shops.find((s) => s.id === product?.shopId) : null;
 
-  // Track product view on open
   useEffect(() => {
     if (isProduct && product?.id) {
       trackProductView(product.id);
@@ -74,7 +70,6 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     setActiveImageIndex(0);
   }, [product?.id, isProduct]);
 
-  // Image list for gallery
   const imageGallery: string[] = isProduct
     ? (product?.images && product.images.length > 0
         ? product.images
@@ -102,27 +97,29 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     ? Math.round(((originalPrice - currentPrice) / originalPrice) * 100)
     : 0);
 
+  const isWishlisted = Boolean(isProduct && product && currentUser?.wishlist?.includes(product.id));
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4">
-      <div className="relative bg-[#0A0A0A] text-white rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl border border-[#D4AF37]/30 animate-in fade-in zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
-        {/* Header Bar */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-neutral-800 bg-black/90 shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4">
+      <div className="relative bg-[#0A0A0A] text-white rounded-2xl max-w-4xl w-full overflow-hidden shadow-2xl border border-[#D4AF37]/40 max-h-[94vh] flex flex-col">
+        {/* Top Header Bar */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-neutral-800 bg-[#000000] shrink-0">
+          <div className="flex items-center gap-2">
             {isProduct ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/60 text-emerald-300 border border-emerald-600/40 rounded-lg text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Verified ASKIA Merchant Store</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-600/40 rounded-lg text-xs font-bold">
+                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                <span>Verified ASKIA Merchant</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/60 text-amber-300 border border-amber-600/40 rounded-lg text-xs font-semibold">
-                <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                <span>Individual Classified Advertisement</span>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/80 text-amber-300 border border-amber-600/40 rounded-lg text-xs font-bold">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span>Classified Advertisement</span>
               </div>
             )}
 
             {((isProduct && product?.isFeatured) || (!isProduct && ad?.isFeatured)) && (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-[#D4AF37] text-black text-[10px] font-black rounded uppercase tracking-wider font-mono-numbers">
-                <Sparkles className="w-3 h-3" />
+                <Sparkles className="w-3 h-3 fill-black" />
                 Featured
               </span>
             )}
@@ -132,19 +129,21 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             {isProduct && product && (
               <button
                 onClick={() => toggleWishlist(product.id)}
-                className={`p-2 rounded-lg border transition-colors cursor-pointer ${
-                  currentUser?.wishlist?.includes(product.id)
-                    ? 'border-rose-500/50 bg-rose-950/40 text-rose-400'
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  isWishlisted
+                    ? 'border-rose-500 bg-rose-950/60 text-rose-400'
                     : 'border-neutral-800 hover:border-neutral-700 text-neutral-400 hover:text-white'
                 }`}
-                title="Save to Wishlist"
+                title={isWishlisted ? 'Saved in Wishlist' : 'Save to Wishlist'}
               >
-                <Heart className={`w-4 h-4 ${currentUser?.wishlist?.includes(product.id) ? 'fill-rose-500' : ''}`} />
+                <Heart className={`w-4 h-4 ${isWishlisted ? 'fill-rose-500' : ''}`} />
               </button>
             )}
+
             <button
               onClick={onClose}
-              className="p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors cursor-pointer"
+              className="p-2 text-neutral-400 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-xl transition-colors cursor-pointer"
+              title="Close"
             >
               <X className="w-5 h-5" />
             </button>
@@ -152,12 +151,12 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="overflow-y-auto p-5 sm:p-6 space-y-6 flex-1 text-sm">
-          {/* Main Visual & Key Data Grid */}
+        <div className="overflow-y-auto p-4 sm:p-6 space-y-6 flex-1 text-sm pb-20 md:pb-6">
+          {/* Main 2-Column Split: Gallery Left, Buy Box Right */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-            {/* Gallery Image Box */}
+            {/* Gallery Column */}
             <div className="space-y-3">
-              <div className="relative rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 aspect-square sm:aspect-4/3 flex items-center justify-center">
+              <div className="relative rounded-2xl overflow-hidden bg-neutral-900 border border-neutral-800 aspect-square flex items-center justify-center">
                 <img
                   src={normalizeImageUrl(
                     currentImage,
@@ -172,30 +171,22 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 />
 
                 {/* Condition Tag */}
-                <div className="absolute bottom-2.5 left-2.5 px-2.5 py-1 bg-black/80 backdrop-blur-md text-white text-xs font-semibold rounded-lg border border-neutral-700">
+                <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-black/85 backdrop-blur-xs text-white text-xs font-semibold rounded-lg border border-neutral-700">
                   {isProduct ? product?.condition : ad?.condition}
                 </div>
 
-                {/* View Counter */}
-                {isProduct && product?.viewCount && product.viewCount > 0 && (
-                  <div className="absolute bottom-2.5 right-2.5 px-2 py-1 bg-black/80 backdrop-blur-md text-neutral-300 text-xs font-mono-numbers rounded-lg flex items-center gap-1 border border-neutral-700">
-                    <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span>{product.viewCount.toLocaleString()} views</span>
-                  </div>
-                )}
-
-                {/* Prev / Next controls for gallery */}
+                {/* Gallery Navigation Buttons */}
                 {imageGallery.length > 1 && (
                   <>
                     <button
                       onClick={() => setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : imageGallery.length - 1))}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/60 hover:bg-black text-white border border-neutral-700 cursor-pointer"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/70 hover:bg-black text-white border border-neutral-700 cursor-pointer shadow-md"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setActiveImageIndex((prev) => (prev < imageGallery.length - 1 ? prev + 1 : 0))}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/60 hover:bg-black text-white border border-neutral-700 cursor-pointer"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/70 hover:bg-black text-white border border-neutral-700 cursor-pointer shadow-md"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -205,7 +196,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
 
               {/* Thumbnails strip */}
               {imageGallery.length > 1 && (
-                <div className="flex gap-2 overflow-x-auto pb-1">
+                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                   {imageGallery.map((imgUrl, idx) => (
                     <button
                       key={idx}
@@ -224,12 +215,12 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Boost / Feature Action for Owner */}
+              {/* Promote action for seller */}
               {((isProduct && !product?.isFeatured && currentRole === 'shop_owner') ||
                 (!isProduct && !ad?.isFeatured && currentRole === 'advertiser')) && (
                 <div className="p-3 bg-neutral-900 border border-[#D4AF37]/30 rounded-xl flex items-center justify-between text-xs">
                   <div>
-                    <span className="font-bold text-white block">Promote Listing</span>
+                    <span className="font-bold text-white block">Promote This Listing</span>
                     <span className="text-[#D4AF37] text-[11px]">
                       {isProduct
                         ? `Feature for ₦${platformSettings.featureProductPriceNgn.toLocaleString()} / 7 days`
@@ -247,7 +238,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                         });
                       }
                     }}
-                    className="px-3 py-1.5 bg-[#D4AF37] text-black font-bold rounded-lg hover:bg-[#c29f2f] transition-colors cursor-pointer"
+                    className="px-3.5 py-1.5 bg-[#D4AF37] hover:bg-[#C59F28] text-black font-bold rounded-lg transition-colors cursor-pointer"
                   >
                     Feature Now
                   </button>
@@ -255,15 +246,15 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
               )}
             </div>
 
-            {/* Item Information */}
+            {/* Contiguous Buy Box & Item Info */}
             <div className="space-y-4">
               <div>
-                <span className="text-xs font-semibold uppercase tracking-wider text-[#D4AF37]">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#D4AF37]">
                   {isProduct ? product?.category : ad?.category}
                 </span>
-                <h2 className="text-xl font-bold text-white mt-1 leading-snug">
+                <h1 className="text-xl sm:text-2xl font-bold text-white mt-1 leading-snug">
                   {isProduct ? product?.title : ad?.title}
-                </h2>
+                </h1>
                 {isProduct && product?.rating && (
                   <div className="flex items-center gap-2 mt-2 text-xs">
                     <div className="flex items-center gap-1 text-amber-400 font-bold">
@@ -278,14 +269,14 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 )}
               </div>
 
-              {/* Price Display */}
-              <div className="p-4 bg-neutral-900/90 border border-neutral-800 rounded-xl">
-                <span className="text-xs text-neutral-400 block">
-                  {isProduct ? 'ASKIA MARKET Verified Official Price' : ad?.isNegotiable ? 'Asking Price (Negotiable)' : 'Asking Price'}
+              {/* Price Box */}
+              <div className="p-4 bg-neutral-900 border border-neutral-800 rounded-xl space-y-1">
+                <span className="text-[11px] text-neutral-400 uppercase tracking-wide block">
+                  {isProduct ? 'ASKIA MARKET Verified Price' : ad?.isNegotiable ? 'Asking Price (Negotiable)' : 'Asking Price'}
                 </span>
                 {isProduct && originalPrice > currentPrice ? (
-                  <div className="flex items-baseline gap-2.5 mt-1 flex-wrap">
-                    <div className="text-2xl font-bold text-[#D4AF37] font-mono-numbers">
+                  <div className="flex items-baseline gap-3 flex-wrap">
+                    <div className="text-2xl sm:text-3xl font-bold text-[#D4AF37] font-mono-numbers">
                       ₦{currentPrice.toLocaleString()}
                     </div>
                     <div className="text-sm text-neutral-500 line-through font-mono-numbers">
@@ -298,19 +289,19 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                     )}
                   </div>
                 ) : (
-                  <div className="text-2xl font-bold text-[#D4AF37] font-mono-numbers mt-1">
+                  <div className="text-2xl sm:text-3xl font-bold text-[#D4AF37] font-mono-numbers">
                     ₦{(isProduct ? product?.price : ad?.price)?.toLocaleString()}
                   </div>
                 )}
                 {isProduct && (
-                  <span className="text-[11px] text-emerald-400 font-medium mt-1.5 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    Verified Store Escrow & Buyer Guarantee Protected
-                  </span>
+                  <div className="text-xs text-emerald-400 font-semibold pt-1 flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Protected by ASKIA Escrow Guarantee</span>
+                  </div>
                 )}
               </div>
 
-              {/* Seller / Store Identity Card */}
+              {/* Seller / Store Identity */}
               {isProduct && shop ? (
                 <div className="p-3.5 bg-neutral-900 border border-[#D4AF37]/30 rounded-xl space-y-2">
                   <div className="flex items-start justify-between">
@@ -320,7 +311,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                         <h4 className="text-sm font-bold text-white">{shop.name}</h4>
                       </div>
                       <p className="text-xs text-neutral-400 mt-0.5 font-mono-numbers">
-                        Verification Badge: <strong className="text-[#D4AF37]">{shop.verificationBadgeNumber}</strong>
+                        Badge: <strong className="text-[#D4AF37]">{shop.verificationBadgeNumber}</strong>
                       </p>
                     </div>
                     {onOpenShop && (
@@ -329,7 +320,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                           onClose();
                           onOpenShop(shop.id);
                         }}
-                        className="text-xs text-[#D4AF37] hover:underline font-semibold cursor-pointer"
+                        className="text-xs text-[#D4AF37] hover:underline font-bold cursor-pointer"
                       >
                         Visit Storefront →
                       </button>
@@ -344,70 +335,63 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 /* Individual Advertiser Contact Card */
                 <div className="p-3.5 bg-neutral-900 border border-neutral-800 rounded-xl space-y-2.5">
                   <div className="flex items-center justify-between text-xs text-neutral-400">
-                    <span className="font-semibold text-neutral-300">Individual Advertiser</span>
+                    <span className="font-bold text-neutral-300">Advertiser</span>
                     <span className="flex items-center gap-1">
                       <MapPin className="w-3.5 h-3.5 text-neutral-500" />
                       {ad?.city}, {ad?.state}
                     </span>
                   </div>
-                  <div className="font-semibold text-white text-sm">
+                  <div className="font-bold text-white text-sm">
                     {ad?.advertiserName}
                   </div>
                   <div className="pt-2 border-t border-neutral-800 flex flex-wrap gap-2 text-xs">
                     <button
                       onClick={() => handleCopyPhone(ad?.advertiserPhone || '')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-black border border-neutral-700 rounded-lg hover:border-neutral-600 font-medium text-neutral-200 transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-black border border-neutral-700 rounded-xl hover:border-neutral-500 font-medium text-neutral-200 transition-colors cursor-pointer"
                     >
                       <Phone className="w-3.5 h-3.5 text-emerald-400" />
                       <span>{copiedPhone ? 'Copied Phone!' : ad?.advertiserPhone}</span>
                     </button>
                     <a
                       href={`tel:${ad?.advertiserPhone}`}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 font-medium transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors"
                     >
                       <Phone className="w-3.5 h-3.5" />
-                      <span>Call Advertiser</span>
+                      <span>Call Now</span>
                     </a>
                   </div>
                 </div>
               )}
 
-              {/* Action Buttons: Add to Cart & Chat with Seller */}
-              <div className="space-y-2.5 pt-1">
+              {/* Desktop Direct Purchase Actions */}
+              <div className="space-y-2.5 hidden md:block">
                 {isProduct && product && (
                   <button
                     onClick={() => {
                       addToCart(product, 1);
                       onClose();
                     }}
-                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#D4AF37] hover:bg-[#c29f2f] text-black font-bold rounded-xl transition-colors shadow-lg shadow-[#D4AF37]/20 cursor-pointer text-sm"
+                    className="w-full flex items-center justify-center gap-2 py-3 bg-[#D4AF37] hover:bg-[#C59F28] text-black font-bold rounded-xl transition-all shadow-md cursor-pointer text-sm"
                   >
                     <ShoppingBag className="w-4 h-4" />
                     <span>Add to Shopping Cart</span>
                   </button>
                 )}
 
-                {/* Instant Chat with Seller Button */}
                 <button
                   onClick={() => {
                     openChat(item);
                     onClose();
                   }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white border border-[#D4AF37]/40 hover:border-[#D4AF37] font-semibold rounded-xl transition-colors cursor-pointer text-xs"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-700 hover:border-[#D4AF37] font-bold rounded-xl transition-colors cursor-pointer text-xs"
                 >
                   <MessageCircle className="w-4 h-4 text-[#D4AF37]" />
-                  <span>Chat directly with Seller / Merchant</span>
+                  <span>Chat with Seller</span>
                 </button>
-
-                {isProduct && product && (
-                  <p className="text-[11px] text-center text-neutral-400">
-                    Stock status: {product.stock > 0 ? `${product.stock} units in stock` : 'Available on order'}
-                  </p>
-                )}
               </div>
 
-              {/* Delivery & Warranty Guarantees */}
-              <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              {/* Service Guarantees */}
+              <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="p-2.5 rounded-xl bg-black border border-neutral-800 flex items-center gap-2">
                   <Truck className="w-4 h-4 text-[#D4AF37] shrink-0" />
                   <span className="text-[11px] text-neutral-300">Fast Nationwide Delivery</span>
@@ -420,28 +404,27 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
             </div>
           </div>
 
-          {/* CRITICAL: Caution Notice Banner for Advertisements */}
+          {/* Classified Caution Banner */}
           {!isProduct && (
             <div className="space-y-3">
               <CautionNoticeBanner variant="full" />
-
-              <div className="flex items-center justify-between text-xs text-neutral-400 pt-1">
-                <span>Posted via ASKIA MARKET Advertiser Subscription</span>
+              <div className="flex items-center justify-between text-xs text-neutral-400">
+                <span>Classified advertisement under ASKIA subscription</span>
                 <button
                   onClick={handleReport}
                   disabled={reported}
-                  className="flex items-center gap-1 text-red-400 hover:text-red-300 font-medium cursor-pointer"
+                  className="flex items-center gap-1 text-red-400 hover:text-red-300 font-semibold cursor-pointer"
                 >
                   <Flag className="w-3.5 h-3.5" />
-                  <span>{reported ? 'Listing Reported' : 'Report Fraud / Suspicious Listing'}</span>
+                  <span>{reported ? 'Listing Reported' : 'Report Fraud / Suspicious'}</span>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Description */}
-          <div className="space-y-2 pt-3 border-t border-neutral-800">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Description</h4>
+          {/* Description Section */}
+          <div className="space-y-2 pt-4 border-t border-neutral-800">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Product Overview</h3>
             <p className="text-sm text-neutral-300 leading-relaxed whitespace-pre-line">
               {isProduct ? product?.description : ad?.description}
             </p>
@@ -449,60 +432,52 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
 
           {/* Technical Specifications */}
           {isProduct && product?.specs && Object.keys(product.specs).length > 0 && (
-            <div className="space-y-2 pt-3 border-t border-neutral-800">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Technical Specifications</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                {Object.entries(product.specs).map(([key, value]) => (
-                  <div key={key} className="p-2.5 rounded-xl bg-neutral-900 border border-neutral-800 flex justify-between">
-                    <span className="text-neutral-400">{key}:</span>
-                    <span className="font-semibold text-white">{value}</span>
+            <div className="space-y-3 pt-4 border-t border-neutral-800">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Technical Specifications</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {Object.entries(product.specs).map(([k, v]) => (
+                  <div key={k} className="p-2.5 bg-neutral-900 border border-neutral-800 rounded-xl text-xs flex justify-between">
+                    <span className="text-neutral-400">{k}</span>
+                    <strong className="text-white font-medium">{v}</strong>
                   </div>
                 ))}
               </div>
             </div>
           )}
+        </div>
 
-          {/* Customer Reviews Section */}
-          {isProduct && (
-            <div className="space-y-3 pt-3 border-t border-neutral-800">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                  Customer Reviews & Ratings
-                </h4>
-                <div className="flex items-center gap-1 text-amber-400 text-xs font-bold">
-                  <Star className="w-3.5 h-3.5 fill-amber-400" />
-                  <span>4.9 out of 5</span>
-                </div>
-              </div>
+        {/* Mobile Sticky Bottom Purchase Bar */}
+        <div className="md:hidden sticky bottom-0 left-0 right-0 bg-[#000000] border-t border-neutral-800 p-3 flex items-center gap-2 z-20 shadow-2xl">
+          <button
+            onClick={() => {
+              openChat(item);
+              onClose();
+            }}
+            className="p-3 bg-neutral-900 text-white border border-neutral-700 rounded-xl shrink-0 cursor-pointer"
+            title="Chat"
+          >
+            <MessageCircle className="w-5 h-5 text-[#D4AF37]" />
+          </button>
 
-              <div className="space-y-2">
-                <div className="p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-white">Chuka E. (Lagos)</span>
-                    <div className="flex text-amber-400">
-                      {'★'.repeat(5)}
-                    </div>
-                  </div>
-                  <p className="text-neutral-300">
-                    "Delivered in less than 24 hours. The item was brand new in original box and fully verified."
-                  </p>
-                  <span className="text-[10px] text-emerald-400 font-medium">✓ Verified ASKIA Order</span>
-                </div>
-
-                <div className="p-3 bg-neutral-900/60 rounded-xl border border-neutral-800 text-xs space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-white">Amina B. (Abuja)</span>
-                    <div className="flex text-amber-400">
-                      {'★'.repeat(5)}
-                    </div>
-                  </div>
-                  <p className="text-neutral-300">
-                    "Authentic product and responsive merchant support. Smooth payment through the gateway."
-                  </p>
-                  <span className="text-[10px] text-emerald-400 font-medium">✓ Verified ASKIA Order</span>
-                </div>
-              </div>
-            </div>
+          {isProduct && product ? (
+            <button
+              onClick={() => {
+                addToCart(product, 1);
+                onClose();
+              }}
+              className="flex-1 py-3 bg-[#D4AF37] text-black font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md cursor-pointer"
+            >
+              <ShoppingBag className="w-4 h-4" />
+              <span>Add to Cart (₦{currentPrice.toLocaleString()})</span>
+            </button>
+          ) : (
+            <a
+              href={`tel:${ad?.advertiserPhone}`}
+              className="flex-1 py-3 bg-emerald-600 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 shadow-md"
+            >
+              <Phone className="w-4 h-4" />
+              <span>Call Advertiser (₦{ad?.price.toLocaleString()})</span>
+            </a>
           )}
         </div>
       </div>

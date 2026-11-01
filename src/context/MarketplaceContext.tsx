@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiFetch, getApiUrl, setStoredAuthToken, getStoredAuthToken } from '../config/api';
 import {
   Shop,
   Product,
@@ -329,7 +330,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch(`/api/notifications?userId=${encodeURIComponent(currentUser?.id || '')}`);
+      const res = await apiFetch(`/api/notifications?userId=${encodeURIComponent(currentUser?.id || '')}`);
       const data = await res.json();
       if (data.success && Array.isArray(data.notifications)) {
         setNotifications(data.notifications);
@@ -356,7 +357,9 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     let es: EventSource | null = null;
     try {
-      es = new EventSource(`/api/notifications/stream?userId=${encodeURIComponent(currentUser.id)}`);
+      const token = getStoredAuthToken();
+      const sseUrl = getApiUrl(`/api/notifications/stream?userId=${encodeURIComponent(currentUser.id)}${token ? `&token=${encodeURIComponent(token)}` : ''}`);
+      es = new EventSource(sseUrl);
 
       es.addEventListener('notification', (e: MessageEvent) => {
         try {
@@ -420,16 +423,17 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const markNotificationAsRead = async (id: string) => {
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     try {
-      await fetch(`/api/notifications/${id}/read`, { method: 'POST' });
+      await apiFetch(`/api/notifications/${id}/read`, {
+        method: 'POST'
+      });
     } catch {}
   };
 
   const markAllNotificationsAsRead = async () => {
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     try {
-      await fetch('/api/notifications/read-all', {
+      await apiFetch('/api/notifications/read-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser?.id })
       });
     } catch {}
@@ -437,14 +441,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const trackProductView = async (productId: string) => {
     try {
-      const res = await fetch(`/api/products/${productId}/view`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
+      const res = await apiFetch(`/api/products/${productId}/view`, {
+        method: 'POST'
       });
       const data = await res.json();
-      if (data.success && typeof data.viewCount === 'number') {
+      if (data.success && typeof data.totalViews === 'number') {
         setProducts((prev) =>
-          prev.map((p) => (p.id === productId ? { ...p, viewCount: data.viewCount } : p))
+          prev.map((p) => (p.id === productId ? { ...p, viewCount: data.totalViews } : p))
         );
       }
     } catch {}
@@ -452,9 +455,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const linkSocialAccount = async (provider: string, identifier: string) => {
     try {
-      const res = await fetch('/api/auth/link-account', {
+      const res = await apiFetch('/api/auth/link-account', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId: currentUser?.id, provider, identifier })
       });
       const data = await res.json();
@@ -476,7 +478,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (permission !== 'granted') return false;
 
       const reg = await navigator.serviceWorker.ready;
-      const keyRes = await fetch('/api/notifications/vapid-public-key');
+      const keyRes = await apiFetch('/api/notifications/vapid-public-key');
       const keyData = await keyRes.json();
 
       const sub = await reg.pushManager.subscribe({
@@ -484,9 +486,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         applicationServerKey: keyData.publicKey
       });
 
-      await fetch('/api/notifications/push-subscribe', {
+      await apiFetch('/api/notifications/push-subscribe', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ subscription: sub, userId: currentUser?.id })
       });
 
@@ -596,13 +597,20 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const checkUniversalSession = async (): Promise<boolean> => {
     try {
-      const res = await fetch('/api/auth/session', { credentials: 'include' });
-      if (!res.ok) return false;
+      const res = await apiFetch('/api/auth/session');
+      if (!res.ok) {
+        setStoredAuthToken(null);
+        return false;
+      }
       const data = await res.json();
       if (data.authenticated && data.user) {
+        if (data.token) {
+          setStoredAuthToken(data.token);
+        }
         applyAuthenticatedUser(data.user, data.isSuperAdmin);
         return true;
       }
+      setStoredAuthToken(null);
       return false;
     } catch {
       return false;
@@ -615,7 +623,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const applyAuthenticatedUser = (userData: any, isFounderAdmin?: boolean) => {
     const cleanEmail = (userData.email || '').toLowerCase();
-    const isFounder = isFounderAdmin || cleanEmail === 'askiasventures@gmail.com' || cleanEmail === 'askiabusiness18@gmail.com';
+    const isFounder = isFounderAdmin || cleanEmail === 'askiasventures@gmail.com';
 
     let matchedUser = users.find((u) => u.email.toLowerCase() === cleanEmail || u.id === userData.id);
     if (!matchedUser) {
@@ -675,10 +683,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     credential: string
   ): Promise<{ success: boolean; user?: any; error?: string; unauthorizedEmail?: string; pendingApproval?: boolean }> => {
     try {
-      const res = await fetch('/api/auth/google/verify', {
+      const res = await apiFetch('/api/auth/google/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ credential })
       });
 
@@ -690,6 +696,10 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
           unauthorizedEmail: data.unauthorizedEmail,
           pendingApproval: data.pendingApproval
         };
+      }
+
+      if (data.token) {
+        setStoredAuthToken(data.token);
       }
 
       if (data.pendingApproval) {
@@ -727,10 +737,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     password: string
   ): Promise<{ success: boolean; user?: any; error?: string; pendingApproval?: boolean }> => {
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify({ emailOrPhone, password })
       });
 
@@ -741,6 +749,10 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
           error: data.message || 'Invalid credentials. Please verify your details.',
           pendingApproval: data.error === 'pending_approval'
         };
+      }
+
+      if (data.token) {
+        setStoredAuthToken(data.token);
       }
 
       applyAuthenticatedUser(data.user, data.isSuperAdmin);
@@ -757,7 +769,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const loginSuperAdmin = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     const res = await loginWithEmailOrPhone(email, password);
     if (res.success) {
-      const isFounder = email.trim().toLowerCase() === 'askiasventures@gmail.com' || email.trim().toLowerCase() === 'askiabusiness18@gmail.com';
+      const isFounder = email.trim().toLowerCase() === 'askiasventures@gmail.com';
       if (!isFounder) {
         return { success: false, error: 'Access Denied: Only authorized Askia Market administrators (askiasventures@gmail.com) are permitted.' };
       }
@@ -776,16 +788,18 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     shopDetails?: any;
   }): Promise<{ success: boolean; user?: any; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await apiFetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(data)
       });
 
       const resData = await res.json();
       if (!res.ok || !resData.success) {
         return { success: false, error: resData.message || 'Registration failed.' };
+      }
+
+      if (resData.token) {
+        setStoredAuthToken(resData.token);
       }
 
       applyAuthenticatedUser(resData.user, false);
@@ -798,9 +812,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // OTP Request
   const requestOtp = async (target: string, type: 'email' | 'phone'): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/request-otp', {
+      const res = await apiFetch('/api/auth/request-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier: target, type })
       });
       const data = await res.json();
@@ -816,9 +829,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // OTP Verification
   const verifyOtp = async (target: string, code: string, type: 'email' | 'phone' = 'email'): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const res = await apiFetch('/api/auth/verify-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier: target, type, code })
       });
       const data = await res.json();
@@ -834,9 +846,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Password Reset with OTP
   const resetPasswordWithOtp = async (emailOrPhone: string, code: string, newPassword: string): Promise<{ success: boolean; message?: string; error?: string }> => {
     try {
-      const res = await fetch('/api/auth/reset-password', {
+      const res = await apiFetch('/api/auth/reset-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ emailOrPhone, code, newPassword })
       });
       const data = await res.json();
@@ -852,10 +863,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   // Submit Merchant KYC with CAC & NIN
   const submitMerchantKyc = async (data: any): Promise<{ success: boolean; record?: any; error?: string }> => {
     try {
-      const res = await fetch('/api/kyc/submit', {
+      const res = await apiFetch('/api/kyc/submit', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
         body: JSON.stringify(data)
       });
       const resData = await res.json();
@@ -869,7 +878,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   };
 
   const logout = () => {
-    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+    apiFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    setStoredAuthToken(null);
     setServerAdminSession({ authenticated: false });
 
     // Reset current user to guest buyer
@@ -1252,9 +1262,8 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
 
     // Send to server-authoritative chat & notification engine
-    fetch('/api/chat/send', {
+    apiFetch('/api/chat/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         threadId: listingId,
         listingId,

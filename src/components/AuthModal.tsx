@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { apiFetch, getApiUrl } from '../config/api';
 import { useMarketplace } from '../context/MarketplaceContext';
 import {
   X,
@@ -94,7 +95,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setPendingNotice(null);
 
     // Fetch Google OAuth Client ID
-    fetch('/api/auth/google/config')
+    apiFetch('/api/auth/google/config')
       .then((r) => r.json())
       .then((data) => {
         if (data.clientId) {
@@ -424,7 +425,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <div ref={googleBtnRef} className="w-full flex justify-center py-1 min-h-[44px]">
                   {/* Fallback standard Google button if GIS client id not loaded */}
                   <a
-                    href="/api/auth/google/login"
+                    href={getApiUrl('/api/auth/google/login')}
                     className="w-full py-2.5 px-4 bg-white text-slate-900 hover:bg-slate-100 rounded-xl font-semibold flex items-center justify-center gap-3 transition-colors shadow-sm border border-slate-300"
                   >
                     <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -439,7 +440,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 {/* 2. Official Facebook Sign-In */}
                 <a
-                  href="/api/auth/facebook/login"
+                  href={getApiUrl('/api/auth/facebook/login')}
                   className="w-full py-2.5 px-4 bg-[#1877F2] text-white hover:bg-[#166fe5] rounded-xl font-semibold flex items-center justify-center gap-2.5 transition-colors shadow-sm"
                 >
                   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">

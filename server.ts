@@ -1,5 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import cookieParser from 'cookie-parser';
+import cors from 'cors';
+import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -24,7 +26,8 @@ const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || '';
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';
 const FACEBOOK_CALLBACK_URL = process.env.FACEBOOK_CALLBACK_URL || `${APP_URL}/api/auth/facebook/callback`;
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjB-meeNuWn_wQhpq63qIGupnvQBQ';
-const SUPER_ADMIN_RAW = process.env.SUPER_ADMIN_EMAIL || 'askiasventures@gmail.com,askiabusiness18@gmail.com';
+// Only authorized production Founder Super Admin
+const SUPER_ADMIN_RAW = process.env.SUPER_ADMIN_EMAIL || 'askiasventures@gmail.com';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'askia_market_production_super_admin_secret_key_2026';
 
 // Parse allowed Super Admin emails (trimmed, lowercased)
@@ -67,6 +70,30 @@ interface SessionPayload {
   exp: number;
 }
 
+// In-memory session revocation ledger mapping userId -> revocation timestamp in seconds
+const userRevocationTimestamps = new Map<string, number>();
+
+// In-memory rate limiting bucket store
+interface RateLimitBucket {
+  count: number;
+  resetAt: number;
+}
+const rateLimitStore = new Map<string, RateLimitBucket>();
+
+function checkRateLimit(key: string, maxRequests: number, windowSeconds: number): { allowed: boolean; waitSeconds?: number } {
+  const now = Date.now();
+  const bucket = rateLimitStore.get(key);
+  if (!bucket || now >= bucket.resetAt) {
+    rateLimitStore.set(key, { count: 1, resetAt: now + windowSeconds * 1000 });
+    return { allowed: true };
+  }
+  if (bucket.count >= maxRequests) {
+    return { allowed: false, waitSeconds: Math.ceil((bucket.resetAt - now) / 1000) };
+  }
+  bucket.count += 1;
+  return { allowed: true };
+}
+
 // Cryptographic HMAC token signing & verification
 function signSessionToken(payload: SessionPayload): string {
   const data = Buffer.from(JSON.stringify(payload)).toString('base64url');
@@ -100,7 +127,21 @@ function verifySessionToken(token: string): SessionPayload | null {
       return null;
     }
 
-    // Verify account is not suspended or revoked
+    // Check session revocation ledger (invalidates revoked sessions immediately)
+    const revokedAt = userRevocationTimestamps.get(payload.userId);
+    if (revokedAt && payload.iat <= revokedAt) {
+      return null;
+    }
+
+    // Check live server user record status
+    if (typeof serverUsers !== 'undefined') {
+      const dbUser = serverUsers.find((u) => u.id === payload.userId);
+      if (dbUser && (dbUser.status === 'suspended' || dbUser.status === 'revoked')) {
+        return null;
+      }
+    }
+
+    // Verify account is not suspended or revoked in payload
     if (payload.status === 'suspended' || payload.status === 'revoked') {
       return null;
     }
@@ -109,6 +150,18 @@ function verifySessionToken(token: string): SessionPayload | null {
   } catch {
     return null;
   }
+}
+
+// Cookie configuration helper adhering to security & cross-origin iframe requirements
+function getAuthCookieOptions(req: Request) {
+  const isSecure = isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https';
+  return {
+    httpOnly: true,
+    secure: isSecure,
+    sameSite: (isSecure ? 'none' : 'lax') as 'none' | 'lax',
+    path: '/',
+    maxAge: 24 * 60 * 60 * 1000
+  };
 }
 
 // In-memory audit log for security events
@@ -154,11 +207,81 @@ app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
 app.use(cookieParser());
 
+// CORS configuration supporting Netlify frontend domains, AI Studio dev, and localhost
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser requests (mobile, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    
+    // Allow any Netlify preview or production domain (*.netlify.app)
+    if (origin.endsWith('.netlify.app')) {
+      return callback(null, true);
+    }
+    // Allow AI Studio cloud run domains (*.run.app)
+    if (origin.endsWith('.run.app')) {
+      return callback(null, true);
+    }
+    // Allow local development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    // Allow any origin in production or preview with credentials
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With', 'X-Askia-Token']
+}));
 
+// Preflight options handler
+app.options('*', cors());
 
-// Server-side Password Hashing (PBKDF2 with salt)
+// Extract session token from Cookies or Authorization: Bearer header
+function extractSessionToken(req: Request): string | null {
+  // 1. Check cookies
+  if (req.cookies && (req.cookies[ADMIN_COOKIE_NAME] || req.cookies[SESSION_COOKIE_NAME])) {
+    return req.cookies[ADMIN_COOKIE_NAME] || req.cookies[SESSION_COOKIE_NAME];
+  }
+  // 2. Check Authorization header (Bearer <token>)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  // 3. Check custom header fallback
+  const customHeader = req.headers['x-askia-token'];
+  if (typeof customHeader === 'string' && customHeader.trim()) {
+    return customHeader.trim();
+  }
+  return null;
+}
+
+// Extract admin session token
+function extractAdminToken(req: Request): string | null {
+  if (req.cookies && req.cookies[ADMIN_COOKIE_NAME]) {
+    return req.cookies[ADMIN_COOKIE_NAME];
+  }
+  return extractSessionToken(req);
+}
+
+// Server-side Password Hashing (Bcrypt with salt rounds 10)
 function hashPassword(password: string): string {
-  return crypto.pbkdf2Sync(password, 'askia_market_salt_2026', 1000, 32, 'sha256').toString('hex');
+  return bcrypt.hashSync(password, 10);
+}
+
+// Password verification supporting both modern bcrypt and legacy PBKDF2
+function verifyPassword(plainPassword: string, storedHash: string): boolean {
+  if (!storedHash || !plainPassword) return false;
+  // If stored as bcrypt hash ($2a$, $2b$, $2y$)
+  if (storedHash.startsWith('$2a$') || storedHash.startsWith('$2b$') || storedHash.startsWith('$2y$')) {
+    try {
+      return bcrypt.compareSync(plainPassword, storedHash);
+    } catch {
+      return false;
+    }
+  }
+  // Legacy PBKDF2 fallback for existing user accounts
+  const legacyHash = crypto.pbkdf2Sync(plainPassword, 'askia_market_salt_2026', 1000, 32, 'sha256').toString('hex');
+  return legacyHash === storedHash;
 }
 
 // In-Memory User Store (Preserved across server session)
@@ -528,7 +651,7 @@ function dispatchNotification(notification: Omit<ServerNotification, 'id' | 'rea
 
 // Server-side Authentication Middleware for Protected Admin APIs
 function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
-  const token = req.cookies[ADMIN_COOKIE_NAME] || req.cookies[SESSION_COOKIE_NAME];
+  const token = extractAdminToken(req);
   if (!token) {
     logAuditEvent('api_denied', 'anonymous', req.ip || '', `Blocked unauthorized request to ${req.path}`);
     return res.status(401).json({
@@ -554,7 +677,7 @@ function requireSuperAdmin(req: Request, res: Response, next: NextFunction) {
 
 // Server-side Authentication Middleware for Staff & Admin
 function requireStaffOrAdmin(req: Request, res: Response, next: NextFunction) {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   if (!token) {
     return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required.' });
   }
@@ -567,6 +690,17 @@ function requireStaffOrAdmin(req: Request, res: Response, next: NextFunction) {
   (req as any).user = session;
   next();
 }
+
+// Health check endpoint for uptime monitors, Netlify proxy checks, and dev diagnostics
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+    corsOrigin: req.headers.origin || null,
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
 
 // ==========================================
 // AUTHENTICATION ROUTES
@@ -611,11 +745,19 @@ app.get('/api/auth/google/login', (req: Request, res: Response) => {
 // 3. Google OAuth 2.0 Callback
 app.get('/api/auth/google/callback', async (req: Request, res: Response) => {
   const { code, state, error, error_description } = req.query;
+  const cookieState = req.cookies['oauth_state'];
 
   if (error) {
     logAuditEvent('login_denied', 'google_oauth_error', req.ip || '', `Google returned error: ${error_description || error}`);
     return res.redirect(`/?tab=marketplace&auth=error&desc=${encodeURIComponent(String(error_description || error))}`);
   }
+
+  // Validate state token against cookie to prevent CSRF attacks
+  if (cookieState && state && state !== cookieState) {
+    logAuditEvent('login_denied', 'google_csrf', req.ip || '', 'OAuth state mismatch (potential CSRF attack)');
+    return res.redirect('/?tab=marketplace&auth=error&desc=Invalid+OAuth+state+parameter');
+  }
+  res.clearCookie('oauth_state', { path: '/' });
 
   if (!code || typeof code !== 'string') {
     return res.redirect('/?tab=marketplace&auth=error&desc=Missing+authorization+code');
@@ -713,13 +855,7 @@ app.get('/api/auth/google/callback', async (req: Request, res: Response) => {
     };
 
     const sessionToken = signSessionToken(sessionPayload);
-    const cookieOpts = {
-      httpOnly: true,
-      secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
-      sameSite: 'lax' as const,
-      path: '/',
-      maxAge: 24 * 60 * 60 * 1000
-    };
+    const cookieOpts = getAuthCookieOptions(req);
 
     res.cookie(SESSION_COOKIE_NAME, sessionToken, cookieOpts);
     if (isFounder) {
@@ -864,13 +1000,7 @@ app.post('/api/auth/google/verify', async (req: Request, res: Response) => {
     };
 
     const sessionToken = signSessionToken(sessionPayload);
-    const cookieOpts = {
-      httpOnly: true,
-      secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
-      sameSite: 'lax' as const,
-      path: '/',
-      maxAge: 24 * 60 * 60 * 1000
-    };
+    const cookieOpts = getAuthCookieOptions(req);
 
     res.cookie(SESSION_COOKIE_NAME, sessionToken, cookieOpts);
     if (isFounder) {
@@ -880,6 +1010,7 @@ app.post('/api/auth/google/verify', async (req: Request, res: Response) => {
     logAuditEvent('login_success', email, req.ip || '', `Authenticated via Google: ${user.accountType}`);
     return res.json({
       success: true,
+      token: sessionToken,
       user: {
         id: user.id,
         email: user.email,
@@ -905,6 +1036,17 @@ app.post('/api/auth/google/verify', async (req: Request, res: Response) => {
 
 // 5. Universal Sign-In with Email or Phone + Password
 app.post('/api/auth/login', (req: Request, res: Response) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const rate = checkRateLimit(`login:${ip}`, 12, 300); // 12 attempts per 5 minutes
+  if (!rate.allowed) {
+    logAuditEvent('api_denied', 'unknown', ip, 'Rate limit exceeded on /api/auth/login');
+    return res.status(429).json({
+      success: false,
+      error: 'rate_limited',
+      message: `Too many login attempts. Please wait ${rate.waitSeconds} seconds before trying again.`
+    });
+  }
+
   const { emailOrPhone, password } = req.body;
 
   if (!emailOrPhone || !password) {
@@ -936,13 +1078,17 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     });
   }
 
-  // Password verification
-  const inputHash = hashPassword(password);
-  const isMatch = user.passwordHash === inputHash;
+  // Password verification supporting bcrypt and legacy hashes
+  const isMatch = verifyPassword(password, user.passwordHash);
 
   if (!isMatch) {
     logAuditEvent('login_denied', user.email, req.ip || '', 'Failed password login attempt');
     return res.status(401).json({ success: false, error: 'invalid_credentials', message: 'Invalid password. Please verify and try again.' });
+  }
+
+  // Automatically upgrade legacy password hash to bcrypt
+  if (!user.passwordHash.startsWith('$2')) {
+    user.passwordHash = hashPassword(password);
   }
 
   const isFounder = isSuperAdminEmail(user.email) && user.accountType === 'admin';
@@ -965,13 +1111,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   };
 
   const sessionToken = signSessionToken(sessionPayload);
-  const cookieOpts = {
-    httpOnly: true,
-    secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
-    sameSite: 'lax' as const,
-    path: '/',
-    maxAge: 24 * 60 * 60 * 1000
-  };
+  const cookieOpts = getAuthCookieOptions(req);
 
   res.cookie(SESSION_COOKIE_NAME, sessionToken, cookieOpts);
   if (isFounder) {
@@ -981,6 +1121,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   logAuditEvent('login_success', user.email, req.ip || '', `Password login successful: ${user.accountType}`);
   return res.json({
     success: true,
+    token: sessionToken,
     user: {
       id: user.id,
       email: user.email,
@@ -1002,6 +1143,17 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
 
 // 6. Universal Registration (Customer, Merchant, Advertiser)
 app.post('/api/auth/register', (req: Request, res: Response) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const rate = checkRateLimit(`reg:${ip}`, 6, 300); // 6 registrations per 5 minutes
+  if (!rate.allowed) {
+    logAuditEvent('api_denied', 'unknown', ip, 'Registration rate limit exceeded');
+    return res.status(429).json({
+      success: false,
+      error: 'rate_limited',
+      message: `Registration rate limit reached. Please wait ${rate.waitSeconds} seconds before trying again.`
+    });
+  }
+
   const { name, email, phone, password, accountType = 'buyer', shopDetails } = req.body;
 
   if (!name || !email || !phone || !password) {
@@ -1082,17 +1234,12 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
   };
 
   const sessionToken = signSessionToken(sessionPayload);
-  res.cookie(SESSION_COOKIE_NAME, sessionToken, {
-    httpOnly: true,
-    secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 24 * 60 * 60 * 1000
-  });
+  res.cookie(SESSION_COOKIE_NAME, sessionToken, getAuthCookieOptions(req));
 
   logAuditEvent('login_success', newUser.email, req.ip || '', `New user registered as ${newUser.accountType}`);
   return res.json({
     success: true,
+    token: sessionToken,
     user: {
       id: newUser.id,
       email: newUser.email,
@@ -1243,7 +1390,7 @@ app.post('/api/auth/reset-password', (req: Request, res: Response) => {
 
 // 9. Unified Active Session Inspection
 app.get('/api/auth/session', (req: Request, res: Response) => {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   if (!token) {
     return res.json({ authenticated: false, user: null });
   }
@@ -1258,6 +1405,7 @@ app.get('/api/auth/session', (req: Request, res: Response) => {
   const isFounder = isSuperAdminEmail(session.email) && session.accountType === 'admin';
   return res.json({
     authenticated: true,
+    token,
     user: {
       id: session.userId,
       email: session.email,
@@ -1278,7 +1426,7 @@ app.get('/api/auth/session', (req: Request, res: Response) => {
 
 // Backward-compatible Admin Session route
 app.get('/api/admin/session', (req: Request, res: Response) => {
-  const token = req.cookies[ADMIN_COOKIE_NAME] || req.cookies[SESSION_COOKIE_NAME];
+  const token = extractAdminToken(req);
   if (!token) {
     return res.json({ authenticated: false, user: null });
   }
@@ -1290,6 +1438,7 @@ app.get('/api/admin/session', (req: Request, res: Response) => {
 
   return res.json({
     authenticated: true,
+    token,
     user: {
       email: session.email,
       name: session.name,
@@ -1302,7 +1451,7 @@ app.get('/api/admin/session', (req: Request, res: Response) => {
 
 // 10. Logout Endpoint (Clears both session cookies)
 app.post('/api/auth/logout', (req: Request, res: Response) => {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   if (token) {
     const session = verifySessionToken(token);
     if (session) {
@@ -1607,13 +1756,14 @@ app.post('/api/admin/staff/applications/:id/review', requireSuperAdmin, (req: Re
 
 // SSE Connection Endpoint: streams real-time notifications to authenticated clients
 app.get('/api/notifications/stream', (req: Request, res: Response) => {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
-  let session = token ? verifySessionToken(token) : null;
-  const userId = session?.userId || (req.query.userId as string);
+  const token = extractSessionToken(req) || (typeof req.query.token === 'string' ? req.query.token : null);
+  const session = token ? verifySessionToken(token) : null;
 
-  if (!userId) {
-    return res.status(401).json({ error: 'unauthenticated', message: 'User identification required for notification stream.' });
+  if (!session) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required for real-time notification stream.' });
   }
+
+  const userId = session.userId;
 
   // Set SSE headers
   res.writeHead(200, {
@@ -1656,23 +1806,36 @@ app.get('/api/notifications/stream', (req: Request, res: Response) => {
   });
 });
 
-// Get user notifications (persistent query)
+// Get user notifications (persistent query, strictly session-authenticated)
 app.get('/api/notifications', (req: Request, res: Response) => {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
-  const userId = session?.userId || (req.query.userId as string);
 
-  if (!userId) {
-    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required.' });
+  if (!session) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required to access notifications.' });
+  }
+
+  // Derive target user identity strictly from verified server-side session.
+  // Super Admin may optionally inspect a specific user for audit purposes.
+  const isFounder = isSuperAdminEmail(session.email) && session.accountType === 'admin';
+  const queryUserId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+
+  let targetUserId = session.userId;
+  if (queryUserId && queryUserId !== session.userId) {
+    if (!isFounder) {
+      logAuditEvent('api_denied', session.email, req.ip || '', `Blocked IDOR attempt to access notifications for ${queryUserId}`);
+      return res.status(403).json({ error: 'forbidden', message: 'Forbidden: Cannot access notifications belonging to another user.' });
+    }
+    targetUserId = queryUserId;
   }
 
   const unreadOnly = req.query.unread === 'true';
-  let list = serverNotifications.filter((n) => n.recipientUserId === userId);
+  let list = serverNotifications.filter((n) => n.recipientUserId === targetUserId);
   if (unreadOnly) {
     list = list.filter((n) => !n.read);
   }
 
-  const unreadCount = serverNotifications.filter((n) => n.recipientUserId === userId && !n.read).length;
+  const unreadCount = serverNotifications.filter((n) => n.recipientUserId === targetUserId && !n.read).length;
 
   res.json({
     success: true,
@@ -1681,20 +1844,24 @@ app.get('/api/notifications', (req: Request, res: Response) => {
   });
 });
 
-// Mark single notification as read
+// Mark single notification as read (strictly authorized)
 app.post('/api/notifications/:id/read', (req: Request, res: Response) => {
   const { id } = req.params;
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
-  const userId = session?.userId || (req.body.userId as string);
+
+  if (!session) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required.' });
+  }
 
   const notif = serverNotifications.find((n) => n.id === id);
   if (!notif) {
     return res.status(404).json({ error: 'Notification not found.' });
   }
 
-  // Authorization check: only recipient can mark as read
-  if (userId && notif.recipientUserId !== userId) {
+  const isFounder = isSuperAdminEmail(session.email) && session.accountType === 'admin';
+  if (notif.recipientUserId !== session.userId && !isFounder) {
+    logAuditEvent('api_denied', session.email, req.ip || '', `Blocked attempt to modify notification ${id} belonging to ${notif.recipientUserId}`);
     return res.status(403).json({ error: 'forbidden', message: 'Cannot modify notifications belonging to another user.' });
   }
 
@@ -1704,16 +1871,19 @@ app.post('/api/notifications/:id/read', (req: Request, res: Response) => {
 
 // Mark all notifications for user as read
 app.post('/api/notifications/read-all', (req: Request, res: Response) => {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
-  const userId = session?.userId || (req.body.userId as string);
 
-  if (!userId) {
-    return res.status(400).json({ error: 'User ID is required.' });
+  if (!session) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required.' });
   }
 
+  const isFounder = isSuperAdminEmail(session.email) && session.accountType === 'admin';
+  const queryUserId = typeof req.body.userId === 'string' ? req.body.userId : undefined;
+  const targetUserId = (isFounder && queryUserId) ? queryUserId : session.userId;
+
   serverNotifications
-    .filter((n) => n.recipientUserId === userId)
+    .filter((n) => n.recipientUserId === targetUserId)
     .forEach((n) => {
       n.read = true;
     });
@@ -1728,7 +1898,7 @@ app.post('/api/notifications/push-subscribe', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Push subscription payload is required.' });
   }
 
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
   const targetUser = userId || session?.userId || 'usr-anonymous';
 
@@ -1772,11 +1942,27 @@ app.post('/api/chat/send', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Recipient ID and message content are required.' });
   }
 
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
 
-  const senderId = session?.userId || req.body.senderId || 'usr-buyer-guest';
-  const senderName = session?.name || req.body.senderName || 'Customer Buyer';
+  let senderId = '';
+  let senderName = '';
+
+  if (session) {
+    // Strictly derive sender identity from verified server session
+    senderId = session.userId;
+    senderName = session.name;
+  } else {
+    // If guest inquiry, prevent impersonating any registered member, staff or admin
+    const requestedId = typeof req.body.senderId === 'string' ? req.body.senderId : '';
+    const isImpersonating = requestedId && serverUsers.some((u) => u.id === requestedId || u.email.toLowerCase() === requestedId.toLowerCase());
+    if (isImpersonating) {
+      logAuditEvent('api_denied', 'guest', req.ip || '', `Blocked guest attempt to impersonate registered user ${requestedId}`);
+      return res.status(403).json({ error: 'forbidden', message: 'Cannot send messages impersonating a registered member. Please log in.' });
+    }
+    senderId = requestedId && requestedId.startsWith('usr-guest-') ? requestedId : `usr-guest-${Date.now()}`;
+    senderName = req.body.senderName || 'Customer (Buyer)';
+  }
 
   const finalThreadId = threadId || `thread-${listingId || Date.now()}`;
 
@@ -1830,18 +2016,29 @@ app.post('/api/chat/send', (req: Request, res: Response) => {
   res.json({ success: true, message: newMsg, notification: notif });
 });
 
-// Get user chat threads
+// Get user chat threads (strictly session-authorized)
 app.get('/api/chat/threads', (req: Request, res: Response) => {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
-  const userId = session?.userId || (req.query.userId as string);
 
-  if (!userId) {
-    return res.status(401).json({ error: 'Authentication required.' });
+  if (!session) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required to view chat threads.' });
+  }
+
+  const isFounder = isSuperAdminEmail(session.email) && session.accountType === 'admin';
+  const queryUserId = typeof req.query.userId === 'string' ? req.query.userId : undefined;
+
+  let targetUserId = session.userId;
+  if (queryUserId && queryUserId !== session.userId) {
+    if (!isFounder) {
+      logAuditEvent('api_denied', session.email, req.ip || '', `Blocked unauthorized attempt to read chat threads for ${queryUserId}`);
+      return res.status(403).json({ error: 'forbidden', message: 'Cannot access chat threads of another user.' });
+    }
+    targetUserId = queryUserId;
   }
 
   // Group messages by threadId
-  const userMessages = serverChatMessages.filter((m) => m.senderId === userId || m.recipientId === userId);
+  const userMessages = serverChatMessages.filter((m) => m.senderId === targetUserId || m.recipientId === targetUserId);
   const threadMap = new Map<string, ServerChatMessage[]>();
 
   userMessages.forEach((m) => {
@@ -1853,10 +2050,10 @@ app.get('/api/chat/threads', (req: Request, res: Response) => {
   const threads = Array.from(threadMap.entries()).map(([threadId, msgs]) => {
     msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
     const lastMsg = msgs[msgs.length - 1];
-    const unreadCount = msgs.filter((m) => m.recipientId === userId && !m.read).length;
+    const unreadCount = msgs.filter((m) => m.recipientId === targetUserId && !m.read).length;
 
     // Determine other party
-    const isSender = lastMsg.senderId === userId;
+    const isSender = lastMsg.senderId === targetUserId;
     const partnerId = isSender ? lastMsg.recipientId : lastMsg.senderId;
     const partner = serverUsers.find((u) => u.id === partnerId);
 
@@ -1879,24 +2076,34 @@ app.get('/api/chat/threads', (req: Request, res: Response) => {
   res.json({ success: true, threads });
 });
 
-// Get messages for a specific thread
+// Get messages for a specific thread (strictly session-authorized)
 app.get('/api/chat/thread/:threadId/messages', (req: Request, res: Response) => {
   const { threadId } = req.params;
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
-  const userId = session?.userId || (req.query.userId as string);
+
+  if (!session) {
+    return res.status(401).json({ error: 'unauthenticated', message: 'Authentication required to view messages.' });
+  }
 
   const msgs = serverChatMessages.filter((m) => m.threadId === threadId);
+  const isFounder = isSuperAdminEmail(session.email) && session.accountType === 'admin';
+
+  // Verify that requester is a participant in this conversation or the Founder Super Admin
+  const isParticipant = msgs.some((m) => m.senderId === session.userId || m.recipientId === session.userId);
+  if (!isParticipant && !isFounder && msgs.length > 0) {
+    logAuditEvent('api_denied', session.email, req.ip || '', `Blocked unauthorized attempt to read thread ${threadId}`);
+    return res.status(403).json({ error: 'forbidden', message: 'Cannot read messages for a thread you do not participate in.' });
+  }
+
   msgs.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
   // Mark messages sent to this user as read
-  if (userId) {
-    msgs.forEach((m) => {
-      if (m.recipientId === userId) {
-        m.read = true;
-      }
-    });
-  }
+  msgs.forEach((m) => {
+    if (m.recipientId === session.userId) {
+      m.read = true;
+    }
+  });
 
   res.json({ success: true, messages: msgs });
 });
@@ -1935,11 +2142,19 @@ app.get('/api/auth/facebook/login', (req: Request, res: Response) => {
 // Facebook OAuth Callback
 app.get('/api/auth/facebook/callback', async (req: Request, res: Response) => {
   const { code, state, error, error_description } = req.query;
+  const cookieState = req.cookies['fb_oauth_state'];
 
   if (error || !code) {
     logAuditEvent('login_denied', 'facebook_error', req.ip || '', `Facebook OAuth error: ${error_description || error || 'Missing code'}`);
     return res.redirect(`/?auth=error&desc=${encodeURIComponent(String(error_description || 'Facebook authentication was cancelled.'))}`);
   }
+
+  // Validate state token against cookie to prevent CSRF attacks
+  if (cookieState && state && state !== cookieState) {
+    logAuditEvent('login_denied', 'facebook_csrf', req.ip || '', 'Facebook OAuth state mismatch (potential CSRF attack)');
+    return res.redirect('/?auth=error&desc=Invalid+Facebook+OAuth+state+parameter');
+  }
+  res.clearCookie('fb_oauth_state', { path: '/' });
 
   try {
     // Exchange code for Access Token
@@ -2010,13 +2225,7 @@ app.get('/api/auth/facebook/callback', async (req: Request, res: Response) => {
     };
 
     const sessionToken = signSessionToken(sessionPayload);
-    res.cookie(SESSION_COOKIE_NAME, sessionToken, {
-      httpOnly: true,
-      secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60 * 1000
-    });
+    res.cookie(SESSION_COOKIE_NAME, sessionToken, getAuthCookieOptions(req));
 
     logAuditEvent('login_success', user.email, req.ip || '', 'User authenticated via Facebook OAuth');
     return res.redirect('/?auth=success');
@@ -2087,16 +2296,10 @@ app.post('/api/auth/facebook/verify', async (req: Request, res: Response) => {
     };
 
     const sessionToken = signSessionToken(sessionPayload);
-    res.cookie(SESSION_COOKIE_NAME, sessionToken, {
-      httpOnly: true,
-      secure: isProduction || req.secure || req.headers['x-forwarded-proto'] === 'https',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 24 * 60 * 60 * 1000
-    });
+    res.cookie(SESSION_COOKIE_NAME, sessionToken, getAuthCookieOptions(req));
 
     logAuditEvent('login_success', user.email, req.ip || '', 'User authenticated via Facebook JS SDK');
-    res.json({ success: true, user });
+    res.json({ success: true, token: sessionToken, user });
   } catch (err: any) {
     res.status(500).json({ error: 'verification_failed', message: err.message });
   }
@@ -2104,7 +2307,7 @@ app.post('/api/auth/facebook/verify', async (req: Request, res: Response) => {
 
 // Link additional authentication provider to existing account safely
 app.post('/api/auth/link-account', (req: Request, res: Response) => {
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
 
   if (!session) {
@@ -2154,7 +2357,7 @@ const viewLedger = new Map<string, number>(); // key: `${productId}:${viewerKey}
 
 app.post('/api/products/:id/view', (req: Request, res: Response) => {
   const { id } = req.params;
-  const token = req.cookies[SESSION_COOKIE_NAME] || req.cookies[ADMIN_COOKIE_NAME];
+  const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
   const viewerKey = session?.userId || req.ip || 'anonymous-viewer';
 
@@ -2407,6 +2610,22 @@ app.post('/api/admin/users/:id/status', requireSuperAdmin, (req: Request, res: R
   const oldStatus = user.status;
   user.status = status;
 
+  if (status === 'suspended' || status === 'revoked') {
+    // Invalidate sessions immediately in revocation ledger
+    userRevocationTimestamps.set(id, Math.floor(Date.now() / 1000));
+    // Terminate any live SSE streams
+    const clients = sseClients.get(id);
+    if (clients) {
+      clients.forEach((c) => {
+        try {
+          c.write(`event: session_revoked\ndata: ${JSON.stringify({ message: 'Account status updated: session invalidated.' })}\n\n`);
+          c.end();
+        } catch {}
+      });
+      sseClients.delete(id);
+    }
+  }
+
   logAuditEvent('settings_update', (req as any).superAdmin.email, req.ip || '', `Updated user status for ${user.email}: ${oldStatus} -> ${status}. Reason: ${reason || 'Administrative action'}`);
   return res.json({ success: true, user: { id: user.id, email: user.email, status: user.status } });
 });
@@ -2418,6 +2637,9 @@ app.post('/api/admin/users/:id/revoke-sessions', requireSuperAdmin, (req: Reques
   if (!user) {
     return res.status(404).json({ error: 'User not found.' });
   }
+
+  // Invalidate tokens immediately in revocation ledger
+  userRevocationTimestamps.set(id, Math.floor(Date.now() / 1000));
 
   // Close any active SSE streams
   const clients = sseClients.get(id);

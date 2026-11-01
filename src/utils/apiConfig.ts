@@ -3,11 +3,12 @@
  * Provides resilient endpoint resolution across local dev, Cloud Run, and Netlify hosting.
  */
 
+import { apiFetch, getApiUrl as configGetApiUrl, getStoredAuthToken, setStoredAuthToken, VITE_API_URL } from '../config/api';
+
+export { apiFetch, getStoredAuthToken, setStoredAuthToken };
+
 // Production or custom backend URL if frontend is deployed separately (e.g. on Netlify)
-export const BACKEND_URL =
-  (import.meta.env.VITE_API_URL as string) ||
-  (import.meta.env.VITE_BACKEND_URL as string) ||
-  '';
+export const BACKEND_URL = VITE_API_URL;
 
 // Google OAuth Client ID from Vite env (Netlify build) or server config
 export const VITE_GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || '';
@@ -18,16 +19,11 @@ export const VITE_GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as s
  * When deployed on Netlify with an external backend, prefixes with BACKEND_URL.
  */
 export function getApiUrl(path: string): string {
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  if (BACKEND_URL) {
-    const cleanBase = BACKEND_URL.endsWith('/') ? BACKEND_URL.slice(0, -1) : BACKEND_URL;
-    return `${cleanBase}${cleanPath}`;
-  }
-  return cleanPath;
+  return configGetApiUrl(path);
 }
 
 /**
- * Robust JSON fetch wrapper with credentials: 'include'.
+ * Robust JSON fetch wrapper with credentials: 'include' and Bearer token fallback.
  * Gracefully detects non-JSON (like Netlify SPA index.html redirects for unmapped APIs).
  */
 export async function apiRequest<T = any>(
@@ -35,18 +31,7 @@ export async function apiRequest<T = any>(
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; error?: string; status?: number }> {
   try {
-    const url = getApiUrl(path);
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      ...((options.headers as Record<string, string>) || {})
-    };
-
-    const res = await fetch(url, {
-      ...options,
-      headers,
-      credentials: 'include' // Transmit HttpOnly session cookies
-    });
+    const res = await apiFetch(path, options);
 
     const contentType = res.headers.get('content-type') || '';
     if (!contentType.includes('application/json')) {

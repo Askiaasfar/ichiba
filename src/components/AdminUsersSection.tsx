@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../config/api';
 import {
   Users,
   UserCheck,
@@ -78,8 +79,8 @@ export const AdminUsersSection: React.FC = () => {
     setLoading(true);
     try {
       const [analyticsRes, usersRes] = await Promise.all([
-        fetch('/api/admin/users/analytics'),
-        fetch('/api/admin/users')
+        apiFetch('/api/admin/users/analytics'),
+        apiFetch('/api/admin/users')
       ]);
 
       const aData = await analyticsRes.json();
@@ -104,9 +105,8 @@ export const AdminUsersSection: React.FC = () => {
 
   const handleStatusChange = async (userId: string, newStatus: 'active' | 'suspended') => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}/status`, {
+      const res = await apiFetch(`/api/admin/users/${userId}/status`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
       });
       const data = await res.json();
@@ -129,7 +129,7 @@ export const AdminUsersSection: React.FC = () => {
 
   const handleRevokeSessions = async (userId: string) => {
     try {
-      const res = await fetch(`/api/admin/users/${userId}/revoke-sessions`, {
+      const res = await apiFetch(`/api/admin/users/${userId}/revoke-sessions`, {
         method: 'POST'
       });
       const data = await res.json();

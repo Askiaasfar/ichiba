@@ -9,13 +9,15 @@ import {
   User,
   LogOut,
   Sparkles,
-  Tag,
-  Shield,
-  Menu,
+  Layers,
+  Search,
   X,
-  Store,
+  Menu,
   ChevronDown,
-  Layers
+  Home,
+  MessageCircle,
+  Store,
+  Shield
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -28,6 +30,10 @@ interface NavbarProps {
   onFilterDeals?: () => void;
   onSelectCategorySection?: () => void;
   onOpenNotifications?: () => void;
+  searchQuery?: string;
+  setSearchQuery?: (q: string) => void;
+  selectedCategory?: string;
+  setSelectedCategory?: (c: string) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -39,21 +45,27 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCustomerPortal,
   onFilterDeals,
   onSelectCategorySection,
-  onOpenNotifications
+  onOpenNotifications,
+  searchQuery = '',
+  setSearchQuery,
+  selectedCategory = 'all',
+  setSelectedCategory
 }) => {
-  const { 
-    cartCount, 
-    currentRole, 
-    currentUser, 
-    isSuperAdmin, 
-    logout, 
+  const {
+    cartCount,
+    currentRole,
+    currentUser,
+    isSuperAdmin,
+    logout,
     setCurrentRole,
-    unreadNotificationCount 
+    unreadNotificationCount,
+    chatThreads
   } = useMarketplace();
+
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Check if current user is logged in as an authenticated non-guest user
+  // Check if current user is logged in
   const isLoggedIn = Boolean(
     currentUser &&
     currentUser.id &&
@@ -61,451 +73,602 @@ export const Navbar: React.FC<NavbarProps> = ({
     currentUser.email !== 'buyer@lagos.ng'
   );
 
+  const totalChatCount = Object.keys(chatThreads || {}).length;
+
   const getRoleBadge = () => {
     if (!currentUser) return null;
     if (isSuperAdmin || currentUser.accountType === 'admin') {
       return (
-        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-[#D4AF37]/20 text-[#D4AF37] border border-[#D4AF37]/40">
+        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-[#D4AF37] text-black">
           Super Admin
         </span>
       );
     }
     if (currentUser.accountType === 'staff') {
       return (
-        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-blue-500/20 text-blue-300 border border-blue-500/40">
+        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-blue-600 text-white">
           Staff
         </span>
       );
     }
     if (currentUser.accountType === 'shop_owner') {
       return (
-        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-emerald-600 text-white">
           Merchant
         </span>
       );
     }
     if (currentUser.accountType === 'advertiser') {
       return (
-        <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/40">
+        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-amber-600 text-white">
           Advertiser
         </span>
       );
     }
     return (
-      <span className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
+      <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-neutral-800 text-neutral-200 border border-neutral-700">
         Buyer
       </span>
     );
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0A0A0A] text-white border-b border-[#262626] shadow-md w-full">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-        {/* Zone 1: Official ASKIA MARKET Brand Identity */}
-        <div className="flex items-center gap-3 shrink-0">
-          <button
-            onClick={() => {
-              setActiveTab('marketplace');
-              setMobileMenuOpen(false);
-            }}
-            className="flex items-center gap-2.5 text-left group focus:outline-none"
-            title="ASKIA MARKET — Your World. Your Market."
-          >
-            <div className="w-9 h-9 rounded-lg bg-black border border-[#D4AF37]/70 text-[#D4AF37] flex items-center justify-center font-bold text-lg shadow-sm group-hover:border-[#D4AF37] group-hover:scale-105 transition-all">
-              <span className="font-serif-brand text-lg font-bold">A</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="font-serif-brand text-lg font-bold tracking-wider text-white whitespace-nowrap">
-                ASKIA <span className="text-[#D4AF37] font-semibold tracking-normal text-sm font-sans">MARKET</span>
-              </span>
-              <span className="text-[9px] text-[#D4AF37]/80 tracking-widest uppercase font-light hidden sm:block -mt-1 font-sans">
-                Your World. Your Market.
-              </span>
-            </div>
-          </button>
-        </div>
-
-        {/* Zone 2: Public Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-6 text-xs font-medium text-slate-300">
-          <button
-            onClick={() => setActiveTab('marketplace')}
-            className={`transition-colors whitespace-nowrap shrink-0 hover:text-[#D4AF37] pb-1 ${
-              activeTab === 'marketplace'
-                ? 'text-[#D4AF37] font-semibold border-b-2 border-[#D4AF37]'
-                : 'text-slate-300'
-            }`}
-          >
-            Marketplace
-          </button>
-
-          <button
-            onClick={() => setActiveTab('shops')}
-            className={`flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 hover:text-[#D4AF37] pb-1 ${
-              activeTab === 'shops'
-                ? 'text-[#D4AF37] font-semibold border-b-2 border-[#D4AF37]'
-                : 'text-slate-300'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Verified Stores</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('classifieds')}
-            className={`flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 hover:text-[#D4AF37] pb-1 ${
-              activeTab === 'classifieds'
-                ? 'text-[#D4AF37] font-semibold border-b-2 border-[#D4AF37]'
-                : 'text-slate-300'
-            }`}
-          >
-            <Megaphone className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Classified Ads</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (onSelectCategorySection) {
-                onSelectCategorySection();
-              } else {
+    <>
+      {/* Top Bar Navigation */}
+      <header className="sticky top-0 z-40 bg-[#000000] text-white border-b border-[#262626] shadow-lg w-full">
+        {/* Main Desktop & Mobile Header Row */}
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-6">
+          {/* Brand Identity */}
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              onClick={() => {
                 setActiveTab('marketplace');
-              }
-            }}
-            className="flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 hover:text-[#D4AF37] text-slate-300 pb-1"
-          >
-            <Layers className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#D4AF37]" />
-            <span>Categories</span>
-          </button>
-
-          <button
-            onClick={() => {
-              if (onFilterDeals) {
-                onFilterDeals();
-              } else {
-                setActiveTab('marketplace');
-              }
-            }}
-            className="flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 hover:text-[#D4AF37] text-amber-400 pb-1"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Deals</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('rules')}
-            className={`transition-colors whitespace-nowrap shrink-0 hover:text-[#D4AF37] pb-1 ${
-              activeTab === 'rules'
-                ? 'text-[#D4AF37] font-semibold border-b-2 border-[#D4AF37]'
-                : 'text-slate-300'
-            }`}
-          >
-            Safety & Policy
-          </button>
-        </nav>
-
-        {/* Zone 3: Actions, Cart & Universal Auth */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          {/* Real-time Notification Bell */}
-          <button
-            onClick={onOpenNotifications}
-            className="relative p-2 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-slate-800 cursor-pointer"
-            title="Real-Time Notifications"
-            aria-label="Notifications"
-          >
-            <Bell className="w-4 h-4 text-slate-200" />
-            {unreadNotificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-black text-[10px] font-bold min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-mono-numbers shadow-sm animate-pulse">
-                {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
-              </span>
-            )}
-          </button>
-
-          {/* Cart button */}
-          <button
-            onClick={onOpenCart}
-            className="relative p-2 text-slate-300 hover:text-white hover:bg-white/5 rounded-lg transition-colors border border-transparent hover:border-slate-800 cursor-pointer"
-            title="Shopping Cart (Verified Store Purchases)"
-          >
-            <ShoppingBag className="w-4 h-4 text-slate-200" />
-            {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 bg-[#D4AF37] text-black text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center font-mono-numbers shadow-sm">
-                {cartCount}
-              </span>
-            )}
-          </button>
-
-          {/* Conditional: If NOT logged in, show clean Sign In & Start Selling buttons */}
-          {!isLoggedIn ? (
-            <div className="hidden sm:flex items-center gap-2">
-              <button
-                onClick={() => onOpenAuthModal('login')}
-                className="px-3 py-1.5 text-xs font-semibold text-slate-200 hover:text-white hover:bg-white/10 rounded-lg border border-slate-700 transition-colors"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => onOpenAuthModal('register')}
-                className="px-3.5 py-1.5 text-xs font-semibold text-black bg-[#D4AF37] hover:bg-[#c29f2f] rounded-lg transition-colors shadow-sm"
-              >
-                Start Selling
-              </button>
-            </div>
-          ) : (
-            /* Logged-In User Menu Dropdown */
-            <div className="relative">
-              <button
-                onClick={() => setShowUserMenu(!showUserMenu)}
-                className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-700 hover:border-[#D4AF37]/50 bg-black/60 hover:bg-black text-slate-200 rounded-lg text-xs font-medium transition-colors shrink-0"
-                title="Account Menu"
-              >
-                <User className="w-3.5 h-3.5 text-[#D4AF37]" />
-                <span className="hidden md:inline max-w-[110px] truncate">
-                  {currentUser.name.split(' ')[0]}
+                setMobileMenuOpen(false);
+              }}
+              className="flex items-center gap-2 text-left group focus:outline-none cursor-pointer"
+              title="ASKIA MARKET — Your World. Your Market."
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#1A1A1A] to-black border border-[#D4AF37] text-[#D4AF37] flex items-center justify-center font-bold text-lg shadow-md group-hover:scale-105 transition-transform">
+                <span className="font-serif-brand text-lg font-bold">A</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-serif-brand text-lg sm:text-xl font-bold tracking-wider text-white whitespace-nowrap leading-tight">
+                  ASKIA <span className="text-[#D4AF37] font-semibold text-base font-sans">MARKET</span>
                 </span>
-                {getRoleBadge()}
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              </button>
+                <span className="text-[9px] text-[#D4AF37] tracking-widest uppercase font-light hidden sm:block font-sans -mt-0.5">
+                  Your World. Your Market.
+                </span>
+              </div>
+            </button>
+          </div>
 
-              {showUserMenu && (
-                <div
-                  className="absolute right-0 mt-2 w-64 bg-[#0A0A0A] border border-[#262626] rounded-xl shadow-2xl p-2 z-50 text-xs text-white animate-in fade-in zoom-in-95"
-                  onMouseLeave={() => setShowUserMenu(false)}
+          {/* Integrated Desktop Search Bar (Amazon / Jiji standard) */}
+          {setSearchQuery && (
+            <div className="hidden md:flex flex-1 max-w-xl items-center bg-[#121212] border border-[#333333] hover:border-[#D4AF37] focus-within:border-[#D4AF37] focus-within:ring-2 focus-within:ring-[#D4AF37]/20 rounded-xl overflow-hidden transition-all h-10">
+              {setSelectedCategory && (
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="bg-[#1A1A1A] text-neutral-300 text-xs px-2.5 h-full border-r border-[#333333] focus:outline-none cursor-pointer max-w-[130px] truncate"
+                  title="Filter by category"
                 >
-                  <div className="px-2.5 py-2 border-b border-[#262626]">
-                    <div className="font-bold text-white truncate">{currentUser.name}</div>
-                    <div className="text-[11px] text-[#D4AF37] font-mono truncate">{currentUser.email}</div>
-                    <div className="mt-1 flex items-center gap-1">
-                      {getRoleBadge()}
-                      {currentUser.kycStatus === 'verified' && (
-                        <span className="text-[9px] px-1 py-0.2 bg-emerald-500/20 text-emerald-300 rounded font-semibold">
-                          KYC Verified
-                        </span>
+                  <option value="all">All Items</option>
+                  <option value="Electronics & Computers">Electronics</option>
+                  <option value="Vehicles & Automotive">Vehicles</option>
+                  <option value="Fashion & Apparel">Fashion</option>
+                  <option value="Solar & Renewable Power">Solar</option>
+                  <option value="Real Estate & Rentals">Real Estate</option>
+                  <option value="Home & Industrial Machinery">Industrial</option>
+                </select>
+              )}
+
+              <div className="relative flex-1 flex items-center h-full">
+                <Search className="w-4 h-4 text-neutral-400 absolute left-3 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search products, phones, cars, solar..."
+                  className="w-full h-full pl-9 pr-8 bg-transparent text-xs text-white placeholder-neutral-400 focus:outline-none"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 text-neutral-400 hover:text-white p-0.5 rounded cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setActiveTab('marketplace');
+                  window.scrollTo({ top: 350, behavior: 'smooth' });
+                }}
+                className="bg-[#D4AF37] hover:bg-[#C59F28] text-black font-bold px-4 h-full text-xs flex items-center justify-center transition-colors cursor-pointer"
+                title="Execute Search"
+              >
+                Search
+              </button>
+            </div>
+          )}
+
+          {/* Desktop Navigation Links */}
+          <nav className="hidden xl:flex items-center gap-5 text-xs font-semibold text-neutral-300">
+            <button
+              onClick={() => setActiveTab('marketplace')}
+              className={`transition-colors whitespace-nowrap hover:text-[#D4AF37] pb-1 cursor-pointer ${
+                activeTab === 'marketplace'
+                  ? 'text-[#D4AF37] font-bold border-b-2 border-[#D4AF37]'
+                  : 'text-neutral-300'
+              }`}
+            >
+              Marketplace
+            </button>
+
+            <button
+              onClick={() => setActiveTab('shops')}
+              className={`flex items-center gap-1.5 transition-colors whitespace-nowrap hover:text-[#D4AF37] pb-1 cursor-pointer ${
+                activeTab === 'shops'
+                  ? 'text-[#D4AF37] font-bold border-b-2 border-[#D4AF37]'
+                  : 'text-neutral-300'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+              <span>Verified Stores</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('classifieds')}
+              className={`flex items-center gap-1.5 transition-colors whitespace-nowrap hover:text-[#D4AF37] pb-1 cursor-pointer ${
+                activeTab === 'classifieds'
+                  ? 'text-[#D4AF37] font-bold border-b-2 border-[#D4AF37]'
+                  : 'text-neutral-300'
+              }`}
+            >
+              <Megaphone className="w-4 h-4 text-[#D4AF37]" />
+              <span>Classifieds</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (onFilterDeals) {
+                  onFilterDeals();
+                } else {
+                  setActiveTab('marketplace');
+                }
+              }}
+              className="flex items-center gap-1.5 transition-colors whitespace-nowrap hover:text-[#D4AF37] text-amber-400 pb-1 cursor-pointer"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+              <span>Deals</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('rules')}
+              className={`transition-colors whitespace-nowrap hover:text-[#D4AF37] pb-1 cursor-pointer ${
+                activeTab === 'rules'
+                  ? 'text-[#D4AF37] font-bold border-b-2 border-[#D4AF37]'
+                  : 'text-neutral-300'
+              }`}
+            >
+              Safety & Policy
+            </button>
+          </nav>
+
+          {/* Right Action Icons (Notifications, Cart, Auth & Post CTA) */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Real-time Notification Bell */}
+            <button
+              onClick={onOpenNotifications}
+              className="relative p-2 text-neutral-300 hover:text-white hover:bg-neutral-900 rounded-xl transition-colors border border-transparent hover:border-neutral-800 cursor-pointer touch-target flex items-center justify-center"
+              title="Notifications"
+              aria-label="Notifications"
+            >
+              <Bell className="w-5 h-5 text-neutral-200" />
+              {unreadNotificationCount > 0 && (
+                <span className="absolute 1 top-1 right-1 bg-[#D4AF37] text-black text-[10px] font-bold min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-mono-numbers shadow-sm animate-pulse">
+                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                </span>
+              )}
+            </button>
+
+            {/* Cart Button */}
+            <button
+              onClick={onOpenCart}
+              className="relative p-2 text-neutral-300 hover:text-white hover:bg-neutral-900 rounded-xl transition-colors border border-transparent hover:border-neutral-800 cursor-pointer touch-target flex items-center justify-center"
+              title="Shopping Cart"
+              aria-label="Shopping Cart"
+            >
+              <ShoppingBag className="w-5 h-5 text-neutral-200" />
+              {cartCount > 0 && (
+                <span className="absolute top-1 right-1 bg-[#D4AF37] text-black text-[10px] font-bold min-w-4 h-4 px-1 rounded-full flex items-center justify-center font-mono-numbers shadow-sm">
+                  {cartCount}
+                </span>
+              )}
+            </button>
+
+            {/* Auth Buttons: Sign In / Account Menu */}
+            {!isLoggedIn ? (
+              <div className="hidden sm:flex items-center gap-2">
+                <button
+                  onClick={() => onOpenAuthModal('login')}
+                  className="px-3.5 py-2 text-xs font-semibold text-neutral-200 hover:text-white bg-neutral-900 hover:bg-neutral-800 rounded-xl border border-neutral-700 transition-colors cursor-pointer"
+                >
+                  Sign In
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center gap-2 px-3 py-1.5 border border-neutral-700 hover:border-[#D4AF37] bg-neutral-900 text-neutral-200 rounded-xl text-xs font-semibold transition-colors shrink-0 cursor-pointer"
+                  title="Account Menu"
+                >
+                  <User className="w-4 h-4 text-[#D4AF37]" />
+                  <span className="hidden md:inline max-w-[100px] truncate font-medium">
+                    {currentUser.name.split(' ')[0]}
+                  </span>
+                  {getRoleBadge()}
+                  <ChevronDown className="w-3.5 h-3.5 text-neutral-400" />
+                </button>
+
+                {showUserMenu && (
+                  <div
+                    className="absolute right-0 mt-2 w-64 bg-[#0A0A0A] border border-[#262626] rounded-2xl shadow-2xl p-2 z-50 text-xs text-white animate-in fade-in zoom-in-95"
+                    onMouseLeave={() => setShowUserMenu(false)}
+                  >
+                    <div className="px-3 py-2.5 border-b border-[#262626]">
+                      <div className="font-bold text-white truncate text-sm">{currentUser.name}</div>
+                      <div className="text-[11px] text-[#D4AF37] font-mono truncate">{currentUser.email}</div>
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        {getRoleBadge()}
+                        {currentUser.kycStatus === 'verified' && (
+                          <span className="text-[9px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-semibold border border-emerald-500/40">
+                            KYC Verified
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="py-1.5 space-y-1">
+                      {currentUser.accountType === 'buyer' && onOpenCustomerPortal && (
+                        <button
+                          onClick={() => {
+                            onOpenCustomerPortal();
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-neutral-800 rounded-xl transition-colors flex items-center justify-between text-neutral-200 font-medium cursor-pointer"
+                        >
+                          <span>My Orders & Wishlist</span>
+                          <span className="text-[10px] text-[#D4AF37] font-bold">Buyer</span>
+                        </button>
                       )}
+
+                      {currentUser.accountType === 'shop_owner' && (
+                        <button
+                          onClick={() => {
+                            setCurrentRole('shop_owner');
+                            setActiveTab('marketplace');
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-emerald-950/60 text-emerald-400 rounded-xl transition-colors flex items-center justify-between font-medium cursor-pointer"
+                        >
+                          <span>Merchant Storefront & Inventory</span>
+                          <Store className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {currentUser.accountType === 'advertiser' && (
+                        <button
+                          onClick={() => {
+                            setCurrentRole('advertiser');
+                            setActiveTab('marketplace');
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-amber-950/60 text-amber-400 rounded-xl transition-colors flex items-center justify-between font-medium cursor-pointer"
+                        >
+                          <span>Classified Ads Workspace</span>
+                          <Megaphone className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {currentUser.accountType === 'staff' && (
+                        <button
+                          onClick={() => {
+                            setCurrentRole('admin');
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-blue-950/60 text-blue-300 font-semibold rounded-xl transition-colors flex items-center justify-between cursor-pointer"
+                        >
+                          <span>Staff Operations Console</span>
+                          <Shield className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      {isSuperAdmin && (
+                        <button
+                          onClick={() => {
+                            setCurrentRole('admin');
+                            setShowUserMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-left hover:bg-[#D4AF37]/20 text-[#D4AF37] font-bold rounded-xl transition-colors flex items-center justify-between cursor-pointer"
+                        >
+                          <span>Founder Command Center</span>
+                          <ShieldCheck className="w-4 h-4" />
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => {
+                          onOpenAuthModal('login');
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full px-3 py-2 text-left hover:bg-neutral-800 rounded-xl transition-colors text-neutral-300 cursor-pointer"
+                      >
+                        Switch Account / Register
+                      </button>
+                    </div>
+
+                    <div className="pt-1.5 border-t border-[#262626]">
+                      <button
+                        onClick={() => {
+                          logout();
+                          setShowUserMenu(false);
+                        }}
+                        className="w-full px-3 py-2 text-left hover:bg-red-950/60 text-red-400 rounded-xl transition-colors flex items-center justify-between font-medium cursor-pointer"
+                      >
+                        <span>Sign Out</span>
+                        <LogOut className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
+                )}
+              </div>
+            )}
 
-                  <div className="py-1 space-y-0.5">
-                    {/* Buyer Dashboard */}
-                    {currentUser.accountType === 'buyer' && onOpenCustomerPortal && (
-                      <button
-                        onClick={() => {
-                          onOpenCustomerPortal();
-                          setShowUserMenu(false);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-left hover:bg-white/10 rounded-lg transition-colors flex items-center justify-between text-slate-200"
-                      >
-                        <span>My Orders & Wishlist</span>
-                        <span className="text-[10px] text-[#D4AF37] font-bold">Buyer</span>
-                      </button>
-                    )}
+            {/* Primary Action Button (Start Selling / Post Ad) */}
+            <button
+              onClick={onOpenCreateModal}
+              className="flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs font-bold text-black bg-[#D4AF37] hover:bg-[#C59F28] rounded-xl transition-all whitespace-nowrap shadow-md hover:shadow-[#D4AF37]/20 cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4 stroke-[3]" />
+              <span>
+                {currentRole === 'shop_owner'
+                  ? 'Add Product'
+                  : currentRole === 'advertiser'
+                  ? 'Post Ad'
+                  : isSuperAdmin
+                  ? 'Admin'
+                  : 'Start Selling'}
+              </span>
+            </button>
 
-                    {/* Merchant Dashboard */}
-                    {currentUser.accountType === 'shop_owner' && (
-                      <button
-                        onClick={() => {
-                          setCurrentRole('shop_owner');
-                          setActiveTab('marketplace');
-                          setShowUserMenu(false);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-left hover:bg-emerald-950/60 text-emerald-400 rounded-lg transition-colors flex items-center justify-between"
-                      >
-                        <span>Merchant Storefront & Inventory</span>
-                        <Store className="w-3.5 h-3.5" />
-                      </button>
-                    )}
+            {/* Mobile Hamburger Toggle for expanded options */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="xl:hidden p-2 text-neutral-300 hover:text-white rounded-xl touch-target flex items-center justify-center"
+              title="Menu"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+          </div>
+        </div>
 
-                    {/* Classified Ads Dashboard */}
-                    {currentUser.accountType === 'advertiser' && (
-                      <button
-                        onClick={() => {
-                          setCurrentRole('advertiser');
-                          setActiveTab('marketplace');
-                          setShowUserMenu(false);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-left hover:bg-amber-950/60 text-amber-400 rounded-lg transition-colors flex items-center justify-between"
-                      >
-                        <span>Classified Ads Workspace</span>
-                        <Megaphone className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {/* Staff Operations Portal */}
-                    {currentUser.accountType === 'staff' && (
-                      <button
-                        onClick={() => {
-                          setCurrentRole('admin');
-                          setShowUserMenu(false);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-left hover:bg-blue-950/60 text-blue-300 font-semibold rounded-lg transition-colors flex items-center justify-between"
-                      >
-                        <span>Staff Operations Console</span>
-                        <Shield className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    {/* Super Admin Console — Only for authorized Super Admin */}
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() => {
-                          setCurrentRole('admin');
-                          setShowUserMenu(false);
-                        }}
-                        className="w-full px-2.5 py-1.5 text-left hover:bg-[#D4AF37]/20 text-[#D4AF37] font-bold rounded-lg transition-colors flex items-center justify-between"
-                      >
-                        <span>Founder Command Center</span>
-                        <ShieldCheck className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => {
-                        onOpenAuthModal('login');
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-left hover:bg-white/10 rounded-lg transition-colors text-slate-300"
-                    >
-                      Switch Account / Register
-                    </button>
-                  </div>
-
-                  <div className="pt-1 border-t border-[#262626]">
-                    <button
-                      onClick={() => {
-                        logout();
-                        setShowUserMenu(false);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-left hover:bg-red-950/60 text-red-400 rounded-lg transition-colors flex items-center justify-between"
-                    >
-                      <span>Sign Out</span>
-                      <LogOut className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
+        {/* Mobile Dedicated Search Row (Sub-header) */}
+        {setSearchQuery && (
+          <div className="md:hidden px-3 pb-3 pt-1 border-t border-[#1C1C1C] bg-[#0A0A0A]">
+            <div className="flex items-center gap-2 bg-[#161616] border border-[#333333] focus-within:border-[#D4AF37] rounded-xl px-3 h-10">
+              <Search className="w-4 h-4 text-neutral-400 shrink-0" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search products, phones, cars..."
+                className="w-full bg-transparent text-xs text-white placeholder-neutral-400 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="text-neutral-400 p-1"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {setSelectedCategory && (
+                <button
+                  onClick={() => {
+                    if (onSelectCategorySection) onSelectCategorySection();
+                  }}
+                  className="text-[11px] font-semibold text-[#D4AF37] whitespace-nowrap pl-1"
+                >
+                  Categories
+                </button>
               )}
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Action button tailored to active role */}
-          <button
-            onClick={onOpenCreateModal}
-            className="flex items-center gap-1.5 px-3 sm:px-3.5 py-1.5 sm:py-2 text-xs font-semibold text-black bg-[#D4AF37] hover:bg-[#c29f2f] rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-sm"
-          >
-            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-            <span>
-              {currentRole === 'shop_owner'
-                ? 'Add Product'
-                : currentRole === 'advertiser'
-                ? 'Post Ad'
-                : isSuperAdmin
-                ? 'Admin'
-                : 'Start Selling'}
-            </span>
-          </button>
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="xl:hidden bg-[#0A0A0A] border-b border-[#262626] px-4 py-3 space-y-1.5 text-xs animate-in slide-in-from-top duration-150">
+            <button
+              onClick={() => {
+                setActiveTab('marketplace');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-left py-2.5 px-3 rounded-xl font-medium ${
+                activeTab === 'marketplace'
+                  ? 'bg-[#D4AF37] text-black font-bold'
+                  : 'text-neutral-200 hover:bg-neutral-900'
+              }`}
+            >
+              Marketplace
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('shops');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-left py-2.5 px-3 rounded-xl flex items-center gap-2 font-medium ${
+                activeTab === 'shops'
+                  ? 'bg-[#D4AF37] text-black font-bold'
+                  : 'text-neutral-200 hover:bg-neutral-900'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
+              <span>Verified Merchant Stores</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('classifieds');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-left py-2.5 px-3 rounded-xl flex items-center gap-2 font-medium ${
+                activeTab === 'classifieds'
+                  ? 'bg-[#D4AF37] text-black font-bold'
+                  : 'text-neutral-200 hover:bg-neutral-900'
+              }`}
+            >
+              <Megaphone className="w-4 h-4 text-[#D4AF37]" />
+              <span>Classified Ads (Direct Deals)</span>
+            </button>
+            <button
+              onClick={() => {
+                if (onFilterDeals) onFilterDeals();
+                setMobileMenuOpen(false);
+              }}
+              className="w-full text-left py-2.5 px-3 rounded-xl text-amber-400 hover:bg-neutral-900 flex items-center gap-2 font-medium"
+            >
+              <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+              <span>Spotlight Deals</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('rules');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-left py-2.5 px-3 rounded-xl font-medium ${
+                activeTab === 'rules'
+                  ? 'bg-[#D4AF37] text-black font-bold'
+                  : 'text-neutral-200 hover:bg-neutral-900'
+              }`}
+            >
+              Safety, Policy &amp; Rules
+            </button>
 
-          {/* Mobile Menu Hamburger */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-slate-300 hover:text-white rounded-lg"
-            title="Toggle Menu"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-        </div>
-      </div>
+            {!isLoggedIn && (
+              <div className="pt-2 border-t border-neutral-800 flex gap-2">
+                <button
+                  onClick={() => {
+                    onOpenAuthModal('login');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex-1 py-2.5 text-center rounded-xl border border-neutral-700 text-white font-bold"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    onOpenAuthModal('register');
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex-1 py-2.5 text-center rounded-xl bg-[#D4AF37] text-black font-bold"
+                >
+                  Register
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </header>
 
-      {/* Mobile Navigation Drawer */}
-      {mobileMenuOpen && (
-        <div className="lg:hidden bg-[#0A0A0A] border-b border-[#262626] px-4 py-3 space-y-2 text-xs">
-          <button
-            onClick={() => {
-              setActiveTab('marketplace');
-              setMobileMenuOpen(false);
-            }}
-            className={`w-full text-left py-2 px-3 rounded-lg ${
-              activeTab === 'marketplace' ? 'bg-[#D4AF37]/20 text-[#D4AF37] font-bold' : 'text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            Marketplace
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('shops');
-              setMobileMenuOpen(false);
-            }}
-            className={`w-full text-left py-2 px-3 rounded-lg flex items-center gap-2 ${
-              activeTab === 'shops' ? 'bg-[#D4AF37]/20 text-[#D4AF37] font-bold' : 'text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Verified Stores</span>
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('classifieds');
-              setMobileMenuOpen(false);
-            }}
-            className={`w-full text-left py-2 px-3 rounded-lg flex items-center gap-2 ${
-              activeTab === 'classifieds' ? 'bg-[#D4AF37]/20 text-[#D4AF37] font-bold' : 'text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            <Megaphone className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Classified Ads</span>
-          </button>
-          <button
-            onClick={() => {
-              if (onSelectCategorySection) onSelectCategorySection();
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left py-2 px-3 rounded-lg text-slate-300 hover:bg-white/5 flex items-center gap-2"
-          >
-            <Layers className="w-3.5 h-3.5 text-slate-400" />
-            <span>Categories</span>
-          </button>
-          <button
-            onClick={() => {
-              if (onFilterDeals) onFilterDeals();
-              setMobileMenuOpen(false);
-            }}
-            className="w-full text-left py-2 px-3 rounded-lg text-amber-400 hover:bg-white/5 flex items-center gap-2"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-            <span>Deals & Featured</span>
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('rules');
-              setMobileMenuOpen(false);
-            }}
-            className={`w-full text-left py-2 px-3 rounded-lg ${
-              activeTab === 'rules' ? 'bg-[#D4AF37]/20 text-[#D4AF37] font-bold' : 'text-slate-300 hover:bg-white/5'
-            }`}
-          >
-            Safety & Policy
-          </button>
+      {/* Persistent Mobile Bottom Navigation Bar (Amazon / Temu / Jiji style) */}
+      <nav
+        aria-label="Mobile Bottom Navigation"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0A0A0A]/95 backdrop-blur-md border-t border-[#262626] flex items-center justify-around px-2 py-1.5 shadow-2xl"
+        style={{ paddingBottom: 'calc(0.4rem + env(safe-area-inset-bottom, 0px))' }}
+      >
+        {/* Tab 1: Home */}
+        <button
+          onClick={() => {
+            setActiveTab('marketplace');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-colors ${
+            activeTab === 'marketplace' ? 'text-[#D4AF37]' : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Home className="w-5 h-5" />
+          <span className="text-[10px] font-semibold mt-0.5">Home</span>
+        </button>
 
-          {!isLoggedIn && (
-            <div className="pt-2 border-t border-[#262626] flex gap-2">
-              <button
-                onClick={() => {
-                  onOpenAuthModal('login');
-                  setMobileMenuOpen(false);
-                }}
-                className="flex-1 py-2 text-center rounded-lg border border-slate-700 text-white font-semibold"
-              >
-                Sign In
-              </button>
-              <button
-                onClick={() => {
-                  onOpenAuthModal('register');
-                  setMobileMenuOpen(false);
-                }}
-                className="flex-1 py-2 text-center rounded-lg bg-[#D4AF37] text-black font-semibold"
-              >
-                Register
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </header>
+        {/* Tab 2: Verified Stores */}
+        <button
+          onClick={() => {
+            setActiveTab('shops');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-colors ${
+            activeTab === 'shops' ? 'text-[#D4AF37]' : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <ShieldCheck className="w-5 h-5" />
+          <span className="text-[10px] font-semibold mt-0.5">Stores</span>
+        </button>
+
+        {/* Tab 3: Sell / Post (Center Elevated Gold Button) */}
+        <button
+          onClick={onOpenCreateModal}
+          className="flex flex-col items-center justify-center -mt-4 bg-[#D4AF37] hover:bg-[#C59F28] text-black w-12 h-12 rounded-full shadow-lg border-2 border-black transition-transform active:scale-95 shrink-0"
+          title="Post Ad / Sell"
+        >
+          <Plus className="w-6 h-6 stroke-[3]" />
+        </button>
+
+        {/* Tab 4: Classifieds */}
+        <button
+          onClick={() => {
+            setActiveTab('classifieds');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }}
+          className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition-colors ${
+            activeTab === 'classifieds' ? 'text-[#D4AF37]' : 'text-neutral-400 hover:text-white'
+          }`}
+        >
+          <Megaphone className="w-5 h-5" />
+          <span className="text-[10px] font-semibold mt-0.5">Ads</span>
+        </button>
+
+        {/* Tab 5: Account / Portal */}
+        <button
+          onClick={() => {
+            if (isLoggedIn) {
+              if (onOpenCustomerPortal && currentUser.accountType === 'buyer') {
+                onOpenCustomerPortal();
+              } else if (currentUser.accountType === 'shop_owner') {
+                setCurrentRole('shop_owner');
+              } else if (currentUser.accountType === 'advertiser') {
+                setCurrentRole('advertiser');
+              } else if (isSuperAdmin) {
+                setCurrentRole('admin');
+              } else {
+                setShowUserMenu(true);
+              }
+            } else {
+              onOpenAuthModal('login');
+            }
+          }}
+          className="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition-colors"
+        >
+          <User className="w-5 h-5" />
+          <span className="text-[10px] font-semibold mt-0.5">
+            {isLoggedIn ? 'Account' : 'Sign In'}
+          </span>
+        </button>
+      </nav>
+    </>
   );
 };

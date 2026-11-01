@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { apiFetch } from '../config/api';
 import { useMarketplace } from '../context/MarketplaceContext';
 import { X, Briefcase, CheckCircle2, ShieldCheck, User, Mail, Phone, FileText } from 'lucide-react';
 
@@ -61,9 +62,8 @@ export const StaffApplicationModal: React.FC<StaffApplicationModalProps> = ({
       });
 
       // Also submit to backend
-      await fetch('/api/staff/apply', {
+      await apiFetch('/api/staff/apply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           applicantName,
           applicantEmail,
