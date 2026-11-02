@@ -423,3 +423,157 @@ export interface ChatThread {
   lastMessageAt: string;
 }
 
+// ==========================================
+// EXPANDED CATEGORY SYSTEM & METADATA
+// ==========================================
+
+export interface CategoryAttributeDef {
+  name: string;
+  label: string;
+  type: 'select' | 'text' | 'number' | 'boolean';
+  options?: string[];
+  unit?: string;
+  required?: boolean;
+}
+
+export interface MarketplaceCategory {
+  id: string;
+  name: string;
+  slug: string;
+  iconName: string;
+  description: string;
+  listingType: 'physical' | 'classified' | 'service' | 'real_estate' | 'digital';
+  subcategories: string[];
+  attributeDefinitions: CategoryAttributeDef[];
+  isActive: boolean;
+  order: number;
+}
+
+// ==========================================
+// ASKIA CAREERS, JOBS & WORK
+// ==========================================
+
+export type EmploymentType =
+  | 'Full-time'
+  | 'Part-time'
+  | 'Contract'
+  | 'Temporary'
+  | 'Permanent'
+  | 'Internship'
+  | 'Graduate Trainee'
+  | 'Apprenticeship'
+  | 'Freelance'
+  | 'Remote'
+  | 'Hybrid'
+  | 'On-site'
+  | 'Daily-paid'
+  | 'Casual Work';
+
+export type ApplicationStatus =
+  | 'Submitted'
+  | 'Under Review'
+  | 'Shortlisted'
+  | 'Interview Scheduled'
+  | 'Assessment Required'
+  | 'Offer Made'
+  | 'Hired'
+  | 'Rejected'
+  | 'Withdrawn';
+
+export interface JobListing {
+  id: string;
+  title: string;
+  companyName: string;
+  companyLogoUrl?: string;
+  companyDescription?: string;
+  employerId: string;
+  employerEmail: string;
+  employerPhone?: string;
+  isVerifiedEmployer: boolean;
+  category: string;
+  subCategory?: string;
+  description: string;
+  responsibilities: string[];
+  requirements: string[];
+  requiredSkills: string[];
+  experienceLevel: 'Entry Level' | 'Mid Level' | 'Senior Level' | 'Executive / Lead' | 'No Experience Required';
+  employmentType: EmploymentType;
+  locationState: string;
+  locationCity: string;
+  workplaceType: 'On-site' | 'Remote' | 'Hybrid';
+  salaryMin?: number;
+  salaryMax?: number;
+  salaryCurrency: string; // 'NGN'
+  salaryFrequency: 'Hourly' | 'Daily' | 'Weekly' | 'Monthly' | 'Yearly' | 'Negotiable' | 'Unpaid Internship';
+  salaryDisclosed: boolean;
+  applicationDeadline: string;
+  vacanciesCount: number;
+  applicationsCount: number;
+  status: 'active' | 'paused' | 'closed' | 'under_moderation';
+  benefits?: string[];
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface JobApplication {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyName: string;
+  employerId: string;
+  applicantUserId: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  applicantHeadline?: string;
+  applicantLocation?: string;
+  coverLetter?: string;
+  cvFileName?: string;
+  cvFileUrl?: string;
+  portfolioUrl?: string;
+  answers?: Record<string, string>;
+  status: ApplicationStatus;
+  interviewDate?: string;
+  interviewNotes?: string;
+  rejectionReason?: string;
+  submittedAt: string;
+  updatedAt?: string;
+}
+
+export interface WorkGigRequest {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  requiredSkills: string[];
+  workersNeeded: number;
+  state: string;
+  city: string;
+  address?: string;
+  workDate: string;
+  expectedDuration: string;
+  compensationAmountNgn: number;
+  paymentFrequency: 'Hourly' | 'Daily' | 'Upon Completion' | 'Milestone';
+  posterId: string;
+  posterName: string;
+  posterPhone: string;
+  posterEmail: string;
+  status: 'open' | 'in_progress' | 'completed' | 'cancelled';
+  responsesCount: number;
+  createdAt: string;
+}
+
+export interface GigWorkerResponse {
+  id: string;
+  gigId: string;
+  workerUserId: string;
+  workerName: string;
+  workerPhone: string;
+  workerSkills: string[];
+  message: string;
+  proposedRateNgn?: number;
+  status: 'interested' | 'shortlisted' | 'selected' | 'declined';
+  respondedAt: string;
+}
+
+

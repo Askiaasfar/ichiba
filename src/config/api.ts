@@ -74,3 +74,33 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     credentials: 'include' // Always include cookies for session persistence
   });
 }
+
+/**
+ * Fetch and safely parse JSON, detecting HTML error pages (e.g. from Netlify 404/redirects or SSO walls)
+ */
+export async function apiJson<T = any>(path: string, options: RequestInit = {}): Promise<T> {
+  const res = await apiFetch(path, options);
+  const contentType = res.headers.get('content-type') || '';
+
+  if (contentType.includes('text/html')) {
+    const text = await res.text();
+    if (text.includes('__cookie_check') || text.includes('accounts.google.com')) {
+      throw new Error('Backend responded with Google Cloud authentication redirect. Ensure BACKEND_URL points to a public live backend service.');
+    }
+    throw new Error(`Expected JSON but server returned HTML (${res.status} ${res.statusText}). Endpoint path may be missing on backend.`);
+  }
+
+  const data = await res.json().catch((err) => {
+    throw new Error(`Failed to parse JSON from ${path} (${res.status}): ${err.message}`);
+  });
+
+  if (!res.ok) {
+    const errorMsg = data?.message || data?.error || `API request failed with status ${res.status}`;
+    const err: any = new Error(errorMsg);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data as T;
+}

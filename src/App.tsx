@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { MarketplaceProvider, useMarketplace } from './context/MarketplaceContext';
 import { CustomerPortal } from './components/CustomerPortal';
 import { StaffApplicationModal } from './components/StaffApplicationModal';
+import { CareersSection } from './components/CareersSection';
 
 import { Navbar } from './components/Navbar';
 import { MarketplaceHero } from './components/MarketplaceHero';
@@ -21,6 +22,8 @@ import { SuperAdminLoginGate } from './components/SuperAdminLoginGate';
 import { NotificationDrawer } from './components/NotificationDrawer';
 import { NotificationToast } from './components/NotificationToast';
 import { Product, Advertisement, Shop } from './types/marketplace';
+import { MARKETPLACE_CATEGORIES } from './data/categoriesData';
+import { NIGERIAN_STATES } from './data/initialData';
 import {
   Search,
   Filter,
@@ -54,7 +57,7 @@ const MainMarketplaceApp: React.FC = () => {
   } = useMarketplace();
 
   // Navigation tabs
-  const [activeNavTab, setActiveNavTab] = useState<'marketplace' | 'shops' | 'classifieds' | 'rules'>('marketplace');
+  const [activeNavTab, setActiveNavTab] = useState<'marketplace' | 'shops' | 'classifieds' | 'rules' | 'careers'>('marketplace');
   
   // Feed filters
   const [feedTypeFilter, setFeedTypeFilter] = useState<'all' | 'verified' | 'advertisement' | 'featured'>('all');
@@ -81,11 +84,14 @@ const MainMarketplaceApp: React.FC = () => {
   const [showCustomerPortal, setShowCustomerPortal] = useState(false);
 
 
-  // Sync URL search parameters for direct navigation or OAuth redirects
+  // Private founder entry route & tab param sync
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('tab') === 'admin' || params.has('auth')) {
+    if (params.get('founder_portal') === 'active' || window.location.hash === '#founder-entry') {
       setCurrentRole('admin');
+    }
+    if (params.get('tab') === 'careers') {
+      setActiveNavTab('careers');
     }
   }, [setCurrentRole]);
 
@@ -379,13 +385,12 @@ const MainMarketplaceApp: React.FC = () => {
                           onChange={(e) => setSelectedCategory(e.target.value)}
                           className="flex-1 sm:flex-none px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 font-medium focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                         >
-                          <option value="all">All Categories</option>
-                          <option value="Electronics & Computers">Electronics & Computers</option>
-                          <option value="Fashion & Apparel">Fashion & Apparel</option>
-                          <option value="Vehicles & Automotive">Vehicles & Automotive</option>
-                          <option value="Solar & Renewable Power">Solar & Renewable Power</option>
-                          <option value="Real Estate & Rentals">Real Estate & Rentals</option>
-                          <option value="Home & Industrial Machinery">Industrial Machinery</option>
+                          <option value="all">All Categories ({MARKETPLACE_CATEGORIES.length})</option>
+                          {MARKETPLACE_CATEGORIES.map((cat) => (
+                            <option key={cat.id} value={cat.name}>
+                              {cat.name}
+                            </option>
+                          ))}
                         </select>
 
                         {/* Location Dropdown */}
@@ -394,12 +399,12 @@ const MainMarketplaceApp: React.FC = () => {
                           onChange={(e) => setSelectedState(e.target.value)}
                           className="flex-1 sm:flex-none px-3 py-2 bg-neutral-50 border border-neutral-300 rounded-xl text-xs text-neutral-800 font-medium focus:outline-none focus:border-[#D4AF37] cursor-pointer"
                         >
-                          <option value="all">All Locations</option>
-                          <option value="Lagos">Lagos State</option>
-                          <option value="Abuja (FCT)">Abuja (FCT)</option>
-                          <option value="Rivers">Rivers (Port Harcourt)</option>
-                          <option value="Oyo">Oyo (Ibadan)</option>
-                          <option value="Kano">Kano</option>
+                          <option value="all">All Nigerian States</option>
+                          {NIGERIAN_STATES.map((state) => (
+                            <option key={state} value={state}>
+                              {state}
+                            </option>
+                          ))}
                         </select>
 
                         {/* Sort Selector */}
@@ -628,6 +633,11 @@ const MainMarketplaceApp: React.FC = () => {
                 <RulesAndSafetyTab />
               </div>
             )}
+
+            {/* View 5: Askia Careers & Work Opportunities */}
+            {activeNavTab === 'careers' && (
+              <CareersSection />
+            )}
           </>
         )}
       </main>
@@ -696,10 +706,13 @@ const MainMarketplaceApp: React.FC = () => {
               Become a Seller
             </button>
             <button
-              onClick={() => setIsStaffAppOpen(true)}
-              className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+              onClick={() => {
+                setActiveNavTab('careers');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="text-[#D4AF37] hover:text-[#E5C158] font-semibold transition-colors"
             >
-              Join Operating Team
+              Careers &amp; Work
             </button>
             <button
               onClick={() => handleOpenAuth('login')}

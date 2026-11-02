@@ -7,6 +7,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { OAuth2Client } from 'google-auth-library';
+import { storage } from './server/storage';
+import {
+  Product,
+  Shop,
+  Advertisement,
+  Order,
+  TransactionRecord
+} from './src/types/marketplace';
 
 dotenv.config();
 
@@ -27,7 +35,7 @@ const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';
 const FACEBOOK_CALLBACK_URL = process.env.FACEBOOK_CALLBACK_URL || `${APP_URL}/api/auth/facebook/callback`;
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjB-meeNuWn_wQhpq63qIGupnvQBQ';
 // Only authorized production Founder Super Admin
-const SUPER_ADMIN_RAW = process.env.SUPER_ADMIN_EMAIL || 'askiasventures@gmail.com';
+const SUPER_ADMIN_RAW = process.env.SUPER_ADMIN_EMAIL || 'askiasventures@gmail.com,askiabusiness18@gmail.com';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'askia_market_production_super_admin_secret_key_2026';
 
 // Parse allowed Super Admin emails (trimmed, lowercased)
@@ -318,127 +326,8 @@ interface ServerUserRecord {
   connectedIdentities?: ConnectedIdentityRecord[];
 }
 
-let serverUsers: ServerUserRecord[] = [
-  {
-    id: 'usr-super-admin-askia',
-    name: 'Sensei Askia',
-    email: 'askiasventures@gmail.com',
-    phone: '+234 800 000 0001',
-    passwordHash: hashPassword('SenseiAskia@2026!'),
-    accountType: 'admin',
-    adminRole: 'super_admin',
-    jobTitle: 'Founder & Super Administrator',
-    department: 'Executive Office',
-    permissions: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings', 'system_security'],
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    createdAt: '2026-01-01T00:00:00Z',
-    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80'
-  },
-  {
-    id: 'usr-buyer-guest',
-    name: 'Customer (Buyer)',
-    email: 'buyer@lagos.ng',
-    phone: '+234 801 234 5678',
-    passwordHash: hashPassword('Customer@2026!'),
-    accountType: 'buyer',
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    createdAt: '2026-01-02T00:00:00Z'
-  },
-  {
-    id: 'usr-owner-1',
-    name: 'Babajide Adeleke',
-    email: 'adeola@auratechglobal.ng',
-    phone: '+234 803 412 8899',
-    passwordHash: hashPassword('Merchant@2026!'),
-    accountType: 'shop_owner',
-    shopId: 'shop-1',
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    kycStatus: 'verified',
-    createdAt: '2026-01-14T00:00:00Z'
-  },
-  {
-    id: 'usr-adv-chinedu',
-    name: 'Chinedu Okafor',
-    email: 'chinedu.okafor.trading@gmail.com',
-    phone: '+234 803 881 2290',
-    passwordHash: hashPassword('Advertiser@2026!'),
-    accountType: 'advertiser',
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    createdAt: '2026-02-10T00:00:00Z'
-  },
-  {
-    id: 'adm-coo',
-    name: "Al'amin",
-    email: 'alamin.coo@askiamarket.ng',
-    phone: '+234 802 111 2233',
-    passwordHash: hashPassword('AlaminCOO@2026!'),
-    accountType: 'staff',
-    adminRole: 'coo',
-    jobTitle: 'Chief Operating Officer (COO)',
-    department: 'Operations & Strategy',
-    permissions: ['operations_oversight', 'approve_shops', 'approve_ads', 'escalations', 'audit_sellers', 'view_reports'],
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    createdAt: '2026-01-05T00:00:00Z'
-  },
-  {
-    id: 'adm-finance',
-    name: 'Khadija',
-    email: 'khadija.finance@askiamarket.ng',
-    phone: '+234 803 222 3344',
-    passwordHash: hashPassword('KhadijaFinance@2026!'),
-    accountType: 'staff',
-    adminRole: 'finance_admin',
-    jobTitle: 'Head of Finance & Escrow',
-    department: 'Treasury & Accounts',
-    permissions: ['approve_payments', 'release_payouts', 'reconcile_escrow', 'refund_orders', 'view_financial_analytics'],
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    createdAt: '2026-01-08T00:00:00Z'
-  },
-  {
-    id: 'adm-growth',
-    name: 'Farhan',
-    email: 'farhan.growth@askiamarket.ng',
-    phone: '+234 804 333 4455',
-    passwordHash: hashPassword('FarhanGrowth@2026!'),
-    accountType: 'staff',
-    adminRole: 'growth_manager',
-    jobTitle: 'Head of Marketing & Growth',
-    department: 'Growth & Merchant Acquisition',
-    permissions: ['approve_ads', 'flag_content', 'campaign_management', 'analytics', 'feature_promotions'],
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    createdAt: '2026-01-10T00:00:00Z'
-  },
-  {
-    id: 'adm-compliance',
-    name: 'Aminu',
-    email: 'aminu.compliance@askiamarket.ng',
-    phone: '+234 805 444 5566',
-    passwordHash: hashPassword('AminuCompliance@2026!'),
-    accountType: 'staff',
-    adminRole: 'verification_officer',
-    jobTitle: 'Senior Seller Verification Officer',
-    department: 'Trust & Safety',
-    permissions: ['approve_shops', 'reject_shops', 'verify_cac', 'audit_sellers', 'kyc_document_review'],
-    status: 'active',
-    isEmailVerified: true,
-    isPhoneVerified: true,
-    createdAt: '2026-01-12T00:00:00Z'
-  }
-];
+// Real Persisted User Store (Backed by storage engine)
+let serverUsers: ServerUserRecord[] = storage.getUsers() as any;
 
 // OTP Store for email & phone verification
 interface OtpEntry {
@@ -475,31 +364,7 @@ interface ServerKycSubmission {
   notes?: string;
 }
 
-let serverKycSubmissions: ServerKycSubmission[] = [
-  {
-    id: 'kyc-001',
-    userId: 'usr-owner-1',
-    businessName: 'Aura Tech Global Systems Ltd',
-    cacNumber: 'RC-1489021',
-    registrationType: 'Limited Liability (RC)',
-    registeredAddress: 'Suite 14, Digital Plaza, Otigba Street, Computer Village, Ikeja',
-    city: 'Ikeja',
-    state: 'Lagos',
-    authorizedRepName: 'Babajide Adeleke',
-    authorizedRepPhone: '+234 803 412 8899',
-    authorizedRepEmail: 'adeola@auratechglobal.ng',
-    idType: 'National ID (NIN)',
-    idNumber: '•••• •••• 8899',
-    maskedNin: '•••• •••• 8899',
-    ninConsentGiven: true,
-    ninConsentTimestamp: '2026-01-14T10:00:00Z',
-    status: 'verified',
-    submittedAt: '2026-01-14T09:30:00Z',
-    reviewedAt: '2026-01-14T14:00:00Z',
-    reviewedBy: 'Aminu (Seller Verification Officer)',
-    notes: 'CAC verified against official business registry. Photo ID match confirmed.'
-  }
-];
+let serverKycSubmissions: ServerKycSubmission[] = [];
 
 // ==========================================
 // REAL-TIME NOTIFICATIONS & CHAT HUB
@@ -551,76 +416,14 @@ const sseClients = new Map<string, Response[]>();
 // Push subscriptions by userId
 const serverPushSubscriptions: PushSubscriptionRecord[] = [];
 
-// Product views map: productId -> ProductViewRecord
+// Product views map: productId -> ProductViewRecord (tracks genuine views only)
 const serverProductViews = new Map<string, ProductViewRecord>();
 
-// Preseed initial product views with realistic baseline counts
-serverProductViews.set('prod-1', { totalViews: 1420, uniqueViewers: new Set(['viewer-1', 'viewer-2', 'viewer-3']), lastViewedAt: new Date().toISOString() });
-serverProductViews.set('prod-2', { totalViews: 890, uniqueViewers: new Set(['viewer-4', 'viewer-5']), lastViewedAt: new Date().toISOString() });
-serverProductViews.set('prod-3', { totalViews: 2150, uniqueViewers: new Set(['viewer-6', 'viewer-7']), lastViewedAt: new Date().toISOString() });
-serverProductViews.set('prod-4', { totalViews: 640, uniqueViewers: new Set(['viewer-8']), lastViewedAt: new Date().toISOString() });
-serverProductViews.set('ad-1', { totalViews: 3200, uniqueViewers: new Set(['viewer-9', 'viewer-10']), lastViewedAt: new Date().toISOString() });
+// Real Notifications Store (Clean, honest empty state)
+let serverNotifications: ServerNotification[] = [];
 
-// In-Memory Persistent Notifications Store
-let serverNotifications: ServerNotification[] = [
-  {
-    id: 'notif-init-1',
-    recipientUserId: 'usr-owner-1',
-    senderUserId: 'usr-buyer-guest',
-    senderName: 'Customer (Buyer)',
-    type: 'chat_message',
-    title: 'New Buyer Inquiry',
-    body: 'Customer (Buyer): Hi, is the AuraBook Pro laptop still available for pickup in Ikeja?',
-    linkUrl: '/?chat=prod-1',
-    metadata: { threadId: 'thread-prod-1', productId: 'prod-1' },
-    read: false,
-    createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'notif-init-2',
-    recipientUserId: 'usr-owner-1',
-    senderUserId: 'usr-super-admin-askia',
-    senderName: 'ASKIA MARKET Trust & Safety',
-    type: 'kyc_update',
-    title: 'Verified Merchant Badge Issued',
-    body: 'Congratulations! Your CAC certificate RC-1489021 has been verified. Verified Store Badge is now live.',
-    linkUrl: '/?tab=shops',
-    metadata: { shopId: 'shop-1' },
-    read: true,
-    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: 'notif-init-3',
-    recipientUserId: 'usr-super-admin-askia',
-    senderUserId: 'usr-owner-1',
-    senderName: 'Babajide Adeleke',
-    type: 'system_alert',
-    title: 'New Merchant Onboarded',
-    body: 'Aura Tech Global Systems completed store setup with active catalog listings.',
-    linkUrl: '/?tab=admin',
-    metadata: { shopId: 'shop-1' },
-    read: false,
-    createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString()
-  }
-];
-
-// In-Memory Chat Messages Store
-let serverChatMessages: ServerChatMessage[] = [
-  {
-    id: 'msg-init-1',
-    threadId: 'thread-prod-1',
-    senderId: 'usr-buyer-guest',
-    senderName: 'Customer (Buyer)',
-    recipientId: 'usr-owner-1',
-    message: 'Hello, is the AuraBook Pro laptop available with immediate delivery in Lagos?',
-    listingId: 'prod-1',
-    listingTitle: 'AuraBook Pro 16" Ultra-Thin Performance Laptop',
-    listingPrice: 1850000,
-    listingImageUrl: '/assets/images/product_tech_laptop_1793094444722.jpg',
-    createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    read: false
-  }
-];
+// Real Chat Messages Store (Clean, honest empty state)
+let serverChatMessages: ServerChatMessage[] = [];
 
 // Real-time Event Dispatcher
 function dispatchNotification(notification: Omit<ServerNotification, 'id' | 'read' | 'createdAt'>): ServerNotification {
@@ -1074,7 +877,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
     return res.status(403).json({
       success: false,
       error: 'pending_approval',
-      message: 'Your application has been submitted. Your account will remain restricted until Founder Sensei Askia reviews and approves your application.'
+      message: 'Your application has been received and is currently under compliance review. You will be notified once verification is completed.'
     });
   }
 
@@ -1613,23 +1416,44 @@ app.post('/api/admin/kyc/review/:id', requireSuperAdmin, (req: Request, res: Res
 // Protected Metrics (Requires valid server-verified Super Admin session)
 app.get('/api/admin/metrics', requireSuperAdmin, (req: Request, res: Response) => {
   const admin = (req as any).superAdmin as SessionPayload;
+  const orders = storage.getOrders();
+  const transactions = storage.getTransactions();
+  const shops = storage.getShops();
+  const ads = storage.getAdvertisements();
+
+  const grossPlatformVolumeNgn = transactions
+    .filter((t) => t.status === 'successful' || t.status === 'completed')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  const escrowBalanceNgn = orders
+    .filter((o) => o.status === 'escrow_locked' || o.status === 'processing')
+    .reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+
+  const settledCommissionsNgn = transactions
+    .filter((t) => t.type === 'commission_deduction')
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  const activeShops = shops.filter((s) => s.status === 'active' || s.isVerified).length;
+  const pendingVerifications = serverKycSubmissions.filter((k) => k.status === 'pending').length;
+  const pendingClassifiedAds = ads.filter((a) => a.status === 'pending_review').length;
+
   res.json({
     authorizedAdmin: admin.email,
     serverTimestamp: new Date().toISOString(),
     systemStatus: 'nominal',
     securityLevel: 'MAXIMUM_AUTHENTICATED',
     financialSnapshot: {
-      grossPlatformVolumeNgn: 4630000,
-      escrowBalanceNgn: 2150000,
-      settledCommissionsNgn: 231500,
-      activeSubscriptionsNgn: 15000,
-      pendingPayoutsCount: 3
+      grossPlatformVolumeNgn,
+      escrowBalanceNgn,
+      settledCommissionsNgn,
+      activeSubscriptionsNgn: 0,
+      pendingPayoutsCount: 0
     },
     governance: {
-      activeShops: 12,
-      pendingVerifications: 2,
-      pendingClassifiedAds: 4,
-      authorizedRolesCount: 5
+      activeShops,
+      pendingVerifications,
+      pendingClassifiedAds,
+      authorizedRolesCount: 1
     }
   });
 });
@@ -1661,30 +1485,7 @@ interface ServerStaffApplication {
   reviewedBy?: string;
 }
 
-let serverStaffApplications: ServerStaffApplication[] = [
-  {
-    id: 'app-001',
-    applicantName: 'Zainab Danjuma',
-    applicantEmail: 'zainab.danjuma@gmail.com',
-    applicantPhone: '+234 802 334 9911',
-    desiredPosition: 'Customer Experience & Merchant Support',
-    department: 'Operations & Strategy',
-    experienceSummary: '3+ years managing merchant onboarding and Tier-2 escalation resolution at Jumia Logistics Nigeria.',
-    submittedAt: '2026-10-27T10:15:00Z',
-    status: 'pending'
-  },
-  {
-    id: 'app-002',
-    applicantName: 'Emeka Umeh',
-    applicantEmail: 'emeka.umeh.risk@outlook.com',
-    applicantPhone: '+234 814 882 1044',
-    desiredPosition: 'KYC & Fraud Prevention Analyst',
-    department: 'Trust & Safety',
-    experienceSummary: 'Ex-Compliance associate at Moniepoint. Certified in CAC business verification and AML risk mitigation.',
-    submittedAt: '2026-10-28T14:30:00Z',
-    status: 'pending'
-  }
-];
+let serverStaffApplications: ServerStaffApplication[] = [];
 
 // Public / applicant submission endpoint
 app.post('/api/staff/apply', (req: Request, res: Response) => {
@@ -2655,6 +2456,1359 @@ app.post('/api/admin/users/:id/revoke-sessions', requireSuperAdmin, (req: Reques
 
   logAuditEvent('settings_update', (req as any).superAdmin.email, req.ip || '', `Revoked all active sessions for ${user.email}`);
   res.json({ success: true, message: `All active sessions revoked for ${user.email}.` });
+});
+
+// ==========================================
+// PRIVATE FOUNDER SUPER ADMIN AUTHENTICATION
+// ==========================================
+app.post('/api/admin/founder-login', (req: Request, res: Response) => {
+  const ip = req.ip || req.socket.remoteAddress || 'unknown';
+  const rate = checkRateLimit(`founder_login:${ip}`, 5, 300); // 5 attempts per 5 minutes
+  if (!rate.allowed) {
+    logAuditEvent('api_denied', 'unknown', ip, 'Rate limit exceeded on /api/admin/founder-login');
+    return res.status(429).json({
+      success: false,
+      error: 'rate_limited',
+      message: `Too many attempts. Please wait ${rate.waitSeconds} seconds.`
+    });
+  }
+
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ success: false, error: 'missing_credentials', message: 'Email and password required.' });
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!isSuperAdminEmail(normalizedEmail)) {
+    logAuditEvent('login_denied', normalizedEmail, ip, 'Unauthorized email attempted private founder access');
+    return res.status(403).json({
+      success: false,
+      error: 'unauthorized',
+      message: 'Access Denied: Account is not authorized for Founder Command Center.'
+    });
+  }
+
+  const user = serverUsers.find((u) => u.email.toLowerCase() === normalizedEmail);
+  if (!user) {
+    return res.status(401).json({ success: false, error: 'invalid_credentials', message: 'Founder account not configured.' });
+  }
+
+  const isMatch = verifyPassword(password, user.passwordHash);
+  if (!isMatch) {
+    logAuditEvent('login_denied', normalizedEmail, ip, 'Failed password on private founder login');
+    return res.status(401).json({ success: false, error: 'invalid_credentials', message: 'Invalid credentials.' });
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const sessionPayload: SessionPayload = {
+    sub: `usr-${user.id}`,
+    userId: user.id,
+    email: user.email,
+    phone: user.phone,
+    name: user.name,
+    picture: user.avatarUrl,
+    accountType: 'admin',
+    adminRole: 'super_admin',
+    jobTitle: user.jobTitle || 'Founder & Super Administrator',
+    department: 'Executive Office',
+    permissions: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings', 'system_security'],
+    status: 'active',
+    iat: now,
+    exp: now + 24 * 60 * 60
+  };
+
+  const sessionToken = signSessionToken(sessionPayload);
+  const cookieOpts = getAuthCookieOptions(req);
+  res.cookie(ADMIN_COOKIE_NAME, sessionToken, cookieOpts);
+  res.cookie(SESSION_COOKIE_NAME, sessionToken, cookieOpts);
+
+  logAuditEvent('login_success', normalizedEmail, ip, 'Founder Super Admin authenticated via private gate');
+  return res.json({
+    success: true,
+    token: sessionToken,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      accountType: 'admin',
+      adminRole: 'super_admin'
+    }
+  });
+});
+
+// Check Founder Admin Session
+app.get('/api/admin/session', (req: Request, res: Response) => {
+  const token = extractAdminToken(req);
+  if (!token) {
+    return res.status(401).json({ authenticated: false });
+  }
+  const session = verifySessionToken(token);
+  if (!session || !isSuperAdminEmail(session.email) || session.accountType !== 'admin') {
+    return res.status(403).json({ authenticated: false });
+  }
+  return res.json({
+    authenticated: true,
+    user: {
+      id: session.userId,
+      name: session.name,
+      email: session.email,
+      accountType: 'admin',
+      adminRole: session.adminRole
+    }
+  });
+});
+
+// ==========================================
+// ASKIA CAREERS, JOBS & WORK BACKEND STORE
+// ==========================================
+
+interface ServerJobListing {
+  id: string;
+  title: string;
+  companyName: string;
+  companyLogoUrl?: string;
+  companyDescription?: string;
+  employerId: string;
+  employerEmail: string;
+  employerPhone?: string;
+  isVerifiedEmployer: boolean;
+  category: string;
+  subCategory?: string;
+  description: string;
+  responsibilities: string[];
+  requirements: string[];
+  requiredSkills: string[];
+  experienceLevel: 'Entry Level' | 'Mid Level' | 'Senior Level' | 'Executive / Lead' | 'No Experience Required';
+  employmentType: string;
+  locationState: string;
+  locationCity: string;
+  workplaceType: 'On-site' | 'Remote' | 'Hybrid';
+  salaryMin?: number;
+  salaryMax?: number;
+  salaryCurrency: string;
+  salaryFrequency: string;
+  salaryDisclosed: boolean;
+  applicationDeadline: string;
+  vacanciesCount: number;
+  applicationsCount: number;
+  status: 'active' | 'paused' | 'closed' | 'under_moderation';
+  benefits?: string[];
+  createdAt: string;
+}
+
+interface ServerJobApplication {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  companyName: string;
+  employerId: string;
+  applicantUserId: string;
+  applicantName: string;
+  applicantEmail: string;
+  applicantPhone: string;
+  applicantHeadline?: string;
+  applicantLocation?: string;
+  coverLetter?: string;
+  cvFileName?: string;
+  cvFileUrl?: string;
+  portfolioUrl?: string;
+  status: 'Submitted' | 'Under Review' | 'Shortlisted' | 'Interview Scheduled' | 'Assessment Required' | 'Offer Made' | 'Hired' | 'Rejected' | 'Withdrawn';
+  interviewDate?: string;
+  interviewNotes?: string;
+  rejectionReason?: string;
+  submittedAt: string;
+  updatedAt?: string;
+}
+
+interface ServerWorkGig {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  requiredSkills: string[];
+  workersNeeded: number;
+  state: string;
+  city: string;
+  address?: string;
+  workDate: string;
+  expectedDuration: string;
+  compensationAmountNgn: number;
+  paymentFrequency: string;
+  posterId: string;
+  posterName: string;
+  posterPhone: string;
+  posterEmail: string;
+  status: 'open' | 'in_progress' | 'completed' | 'cancelled';
+  responsesCount: number;
+  createdAt: string;
+}
+
+interface ServerGigResponse {
+  id: string;
+  gigId: string;
+  workerUserId: string;
+  workerName: string;
+  workerPhone: string;
+  workerSkills: string[];
+  message: string;
+  proposedRateNgn?: number;
+  status: 'interested' | 'shortlisted' | 'selected' | 'declined';
+  respondedAt: string;
+}
+
+// Real Persisted Careers & Work Store
+let serverJobListings: ServerJobListing[] = storage.getJobs() as any;
+let serverJobApplications: ServerJobApplication[] = storage.getJobApplications() as any;
+let serverWorkGigs: ServerWorkGig[] = storage.getWorkGigs() as any;
+let serverGigResponses: ServerGigResponse[] = storage.getGigResponses() as any;
+
+// 1. GET /api/jobs (Filterable job discovery)
+app.get('/api/jobs', (req: Request, res: Response) => {
+  const { category, search, locationState, employmentType, workplaceType } = req.query;
+  let results = serverJobListings.filter((j) => j.status === 'active');
+
+  if (category && typeof category === 'string' && category !== 'all') {
+    results = results.filter((j) => j.category.toLowerCase() === category.toLowerCase());
+  }
+
+  if (locationState && typeof locationState === 'string' && locationState !== 'all') {
+    results = results.filter((j) => j.locationState.toLowerCase() === locationState.toLowerCase());
+  }
+
+  if (employmentType && typeof employmentType === 'string' && employmentType !== 'all') {
+    results = results.filter((j) => j.employmentType.toLowerCase() === employmentType.toLowerCase());
+  }
+
+  if (workplaceType && typeof workplaceType === 'string' && workplaceType !== 'all') {
+    results = results.filter((j) => j.workplaceType.toLowerCase() === workplaceType.toLowerCase());
+  }
+
+  if (search && typeof search === 'string' && search.trim()) {
+    const q = search.trim().toLowerCase();
+    results = results.filter(
+      (j) =>
+        j.title.toLowerCase().includes(q) ||
+        j.description.toLowerCase().includes(q) ||
+        j.companyName.toLowerCase().includes(q) ||
+        j.requiredSkills.some((s) => s.toLowerCase().includes(q))
+    );
+  }
+
+  res.json({
+    success: true,
+    total: results.length,
+    jobs: results
+  });
+});
+
+// 2. GET /api/jobs/:id
+app.get('/api/jobs/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const job = serverJobListings.find((j) => j.id === id);
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job vacancy not found.' });
+  }
+  res.json({ success: true, job });
+});
+
+// 3. POST /api/jobs (Create Job Listing)
+app.post('/api/jobs', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+  const {
+    title,
+    companyName,
+    category,
+    subCategory,
+    description,
+    responsibilities,
+    requirements,
+    requiredSkills,
+    experienceLevel,
+    employmentType,
+    locationState,
+    locationCity,
+    workplaceType,
+    salaryMin,
+    salaryMax,
+    salaryFrequency,
+    salaryDisclosed,
+    applicationDeadline,
+    vacanciesCount,
+    benefits,
+    employerEmail,
+    employerPhone
+  } = req.body;
+
+  if (!title || !companyName || !category || !description) {
+    return res.status(400).json({ success: false, error: 'missing_fields', message: 'Job title, company name, category, and description are required.' });
+  }
+
+  const employerId = session?.userId || `emp-${Date.now()}`;
+  const isVerified = session?.accountType === 'shop_owner' || isSuperAdminEmail(session?.email);
+
+  const newJob: ServerJobListing = {
+    id: `job-${Date.now()}`,
+    title: title.trim(),
+    companyName: companyName.trim(),
+    employerId,
+    employerEmail: session?.email || employerEmail || 'employer@askiamarket.ng',
+    employerPhone: session?.phone || employerPhone || '',
+    isVerifiedEmployer: isVerified,
+    category: category.trim(),
+    subCategory: subCategory ? subCategory.trim() : undefined,
+    description: description.trim(),
+    responsibilities: Array.isArray(responsibilities) ? responsibilities : (responsibilities ? [responsibilities] : []),
+    requirements: Array.isArray(requirements) ? requirements : (requirements ? [requirements] : []),
+    requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : (requiredSkills ? [requiredSkills] : []),
+    experienceLevel: experienceLevel || 'Mid Level',
+    employmentType: employmentType || 'Full-time',
+    locationState: locationState || 'Lagos',
+    locationCity: locationCity || 'Ikeja',
+    workplaceType: workplaceType || 'On-site',
+    salaryMin: salaryMin ? Number(salaryMin) : undefined,
+    salaryMax: salaryMax ? Number(salaryMax) : undefined,
+    salaryCurrency: 'NGN',
+    salaryFrequency: salaryFrequency || 'Monthly',
+    salaryDisclosed: salaryDisclosed !== false,
+    applicationDeadline: applicationDeadline || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    vacanciesCount: Number(vacanciesCount) || 1,
+    applicationsCount: 0,
+    status: 'active',
+    benefits: Array.isArray(benefits) ? benefits : [],
+    createdAt: new Date().toISOString()
+  };
+
+  serverJobListings.unshift(newJob);
+  res.json({ success: true, job: newJob });
+});
+
+// 4. POST /api/jobs/:id/apply (Apply for Job Vacancy)
+app.post('/api/jobs/:id/apply', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const job = serverJobListings.find((j) => j.id === id);
+  if (!job) {
+    return res.status(404).json({ success: false, error: 'Job not found.' });
+  }
+
+  const {
+    applicantName,
+    applicantEmail,
+    applicantPhone,
+    applicantHeadline,
+    applicantLocation,
+    coverLetter,
+    cvFileName,
+    cvFileUrl,
+    portfolioUrl
+  } = req.body;
+
+  if (!applicantName || !applicantEmail || !applicantPhone) {
+    return res.status(400).json({ success: false, error: 'missing_fields', message: 'Name, email, and phone number are required.' });
+  }
+
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+  const applicantUserId = session?.userId || `app-${Date.now()}`;
+
+  // Check duplicate application
+  const existing = serverJobApplications.find(
+    (a) => a.jobId === id && (a.applicantUserId === applicantUserId || a.applicantEmail.toLowerCase() === applicantEmail.toLowerCase())
+  );
+  if (existing) {
+    return res.status(400).json({ success: false, error: 'already_applied', message: 'You have already submitted an application for this position.' });
+  }
+
+  const application: ServerJobApplication = {
+    id: `appl-${Date.now()}`,
+    jobId: id,
+    jobTitle: job.title,
+    companyName: job.companyName,
+    employerId: job.employerId,
+    applicantUserId,
+    applicantName: applicantName.trim(),
+    applicantEmail: applicantEmail.trim(),
+    applicantPhone: applicantPhone.trim(),
+    applicantHeadline: applicantHeadline ? applicantHeadline.trim() : undefined,
+    applicantLocation: applicantLocation ? applicantLocation.trim() : undefined,
+    coverLetter: coverLetter ? coverLetter.trim() : undefined,
+    cvFileName: cvFileName || 'Resume_Document.pdf',
+    cvFileUrl: cvFileUrl || '',
+    portfolioUrl: portfolioUrl || '',
+    status: 'Submitted',
+    submittedAt: new Date().toISOString()
+  };
+
+  serverJobApplications.push(application);
+  job.applicationsCount += 1;
+
+  // Dispatch persistent notification to employer
+  dispatchNotification({
+    recipientUserId: job.employerId,
+    type: 'inquiry',
+    title: 'New Candidate Job Application',
+    body: `${applicantName} applied for ${job.title}. Review candidate credentials and CV in your Employer Workspace.`,
+    linkUrl: `/?tab=careers&employer_view=true&job_id=${job.id}`,
+    metadata: { jobId: job.id, applicationId: application.id }
+  });
+
+  res.json({ success: true, application });
+});
+
+// 5. GET /api/jobs/applications/my (Candidate views own applications)
+app.get('/api/jobs/applications/my', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+  const emailParam = typeof req.query.email === 'string' ? req.query.email.toLowerCase() : null;
+
+  let myApplications = serverJobApplications;
+  if (session) {
+    myApplications = myApplications.filter(
+      (a) => a.applicantUserId === session.userId || a.applicantEmail.toLowerCase() === session.email.toLowerCase()
+    );
+  } else if (emailParam) {
+    myApplications = myApplications.filter((a) => a.applicantEmail.toLowerCase() === emailParam);
+  } else {
+    myApplications = [];
+  }
+
+  res.json({ success: true, applications: myApplications });
+});
+
+// 6. GET /api/jobs/employer/:employerId/applications (Employer reviews applicants)
+app.get('/api/jobs/employer/:employerId/applications', (req: Request, res: Response) => {
+  const { employerId } = req.params;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  const isAuthorized = session && (session.userId === employerId || isSuperAdminEmail(session.email) || session.accountType === 'admin');
+  if (!isAuthorized) {
+    return res.status(403).json({ success: false, error: 'forbidden', message: 'Unauthorized to view employer candidate applications.' });
+  }
+
+  const applications = serverJobApplications.filter((a) => a.employerId === employerId);
+  res.json({ success: true, applications });
+});
+
+// 7. PATCH /api/jobs/applications/:id/status (Employer updates hiring status)
+app.patch('/api/jobs/applications/:id/status', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, interviewDate, interviewNotes, rejectionReason } = req.body;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  const application = serverJobApplications.find((a) => a.id === id);
+  if (!application) {
+    return res.status(404).json({ success: false, error: 'Application not found.' });
+  }
+
+  const isAuthorized = session && (session.userId === application.employerId || isSuperAdminEmail(session.email) || session.accountType === 'admin');
+  if (!isAuthorized) {
+    return res.status(403).json({ success: false, error: 'forbidden', message: 'Unauthorized to alter application status.' });
+  }
+
+  application.status = status;
+  if (interviewDate) application.interviewDate = interviewDate;
+  if (interviewNotes) application.interviewNotes = interviewNotes;
+  if (rejectionReason) application.rejectionReason = rejectionReason;
+  application.updatedAt = new Date().toISOString();
+
+  // Notify applicant of meaningful status change
+  dispatchNotification({
+    recipientUserId: application.applicantUserId,
+    type: 'system_alert',
+    title: `Job Application Update: ${application.jobTitle}`,
+    body: `Status updated to "${status}" by ${application.companyName}.${interviewDate ? ` Interview scheduled for ${interviewDate}.` : ''}`,
+    linkUrl: `/?tab=careers&view=applications`,
+    metadata: { applicationId: application.id, status }
+  });
+
+  res.json({ success: true, application });
+});
+
+// 8. GET /api/gigs (Work Requests & Quick Gigs)
+app.get('/api/gigs', (req: Request, res: Response) => {
+  const { category, state } = req.query;
+  let results = serverWorkGigs.filter((g) => g.status === 'open');
+
+  if (category && typeof category === 'string' && category !== 'all') {
+    results = results.filter((g) => g.category.toLowerCase() === category.toLowerCase());
+  }
+  if (state && typeof state === 'string' && state !== 'all') {
+    results = results.filter((g) => g.state.toLowerCase() === state.toLowerCase());
+  }
+
+  res.json({ success: true, gigs: results });
+});
+
+// 9. POST /api/gigs (Create Work Request)
+app.post('/api/gigs', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+  const {
+    title,
+    description,
+    category,
+    requiredSkills,
+    workersNeeded,
+    state,
+    city,
+    address,
+    workDate,
+    expectedDuration,
+    compensationAmountNgn,
+    paymentFrequency,
+    posterName,
+    posterPhone,
+    posterEmail
+  } = req.body;
+
+  if (!title || !description || !state || !compensationAmountNgn) {
+    return res.status(400).json({ success: false, error: 'missing_fields', message: 'Title, description, location state, and compensation amount are required.' });
+  }
+
+  const newGig: ServerWorkGig = {
+    id: `gig-${Date.now()}`,
+    title: title.trim(),
+    description: description.trim(),
+    category: category || 'General Labour & Artisans',
+    requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : [],
+    workersNeeded: Number(workersNeeded) || 1,
+    state: state || 'Lagos',
+    city: city || 'Ikeja',
+    address: address ? address.trim() : undefined,
+    workDate: workDate || 'Immediate',
+    expectedDuration: expectedDuration || '1 Day',
+    compensationAmountNgn: Number(compensationAmountNgn) || 10000,
+    paymentFrequency: paymentFrequency || 'Daily',
+    posterId: session?.userId || `user-${Date.now()}`,
+    posterName: session?.name || posterName || 'Work Poster',
+    posterPhone: session?.phone || posterPhone || '+234 800 000 0000',
+    posterEmail: session?.email || posterEmail || 'poster@askiamarket.ng',
+    status: 'open',
+    responsesCount: 0,
+    createdAt: new Date().toISOString()
+  };
+
+  serverWorkGigs.unshift(newGig);
+  res.json({ success: true, gig: newGig });
+});
+
+// 10. POST /api/gigs/:id/respond (Worker expresses interest in a gig)
+app.post('/api/gigs/:id/respond', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const gig = serverWorkGigs.find((g) => g.id === id);
+  if (!gig) {
+    return res.status(404).json({ success: false, error: 'Gig not found.' });
+  }
+
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+  const { workerName, workerPhone, workerSkills, message, proposedRateNgn } = req.body;
+
+  if (!workerName || !workerPhone) {
+    return res.status(400).json({ success: false, error: 'missing_fields', message: 'Worker name and phone number required.' });
+  }
+
+  const responseEntry: ServerGigResponse = {
+    id: `resp-${Date.now()}`,
+    gigId: id,
+    workerUserId: session?.userId || `wrk-${Date.now()}`,
+    workerName: workerName.trim(),
+    workerPhone: workerPhone.trim(),
+    workerSkills: Array.isArray(workerSkills) ? workerSkills : [],
+    message: message || 'I am ready and available to work on this request.',
+    proposedRateNgn: proposedRateNgn ? Number(proposedRateNgn) : gig.compensationAmountNgn,
+    status: 'interested',
+    respondedAt: new Date().toISOString()
+  };
+
+  serverGigResponses.push(responseEntry);
+  gig.responsesCount += 1;
+
+  // Notify gig poster
+  dispatchNotification({
+    recipientUserId: gig.posterId,
+    type: 'inquiry',
+    title: 'Worker Available for Your Work Request',
+    body: `${workerName} (${workerPhone}) is available for "${gig.title}".`,
+    linkUrl: `/?tab=careers&view=gigs`,
+    metadata: { gigId: gig.id, workerResponseId: responseEntry.id }
+  });
+
+  res.json({ success: true, response: responseEntry });
+});
+
+// ==========================================
+// PERSISTENT PRODUCTS API
+// ==========================================
+
+// GET /api/products (Filterable product catalog)
+app.get('/api/products', (req: Request, res: Response) => {
+  const { category, search, shopId, minPrice, maxPrice, isVerifiedSeller, state, sort } = req.query;
+  let products = storage.getProducts();
+
+  if (category && typeof category === 'string' && category !== 'all') {
+    products = products.filter((p) => p.category.toLowerCase() === category.toLowerCase());
+  }
+
+  if (shopId && typeof shopId === 'string') {
+    products = products.filter((p) => p.shopId === shopId);
+  }
+
+  if (state && typeof state === 'string' && state !== 'all') {
+    products = products.filter((p) => p.state && p.state.toLowerCase() === state.toLowerCase());
+  }
+
+  if (isVerifiedSeller === 'true') {
+    products = products.filter((p) => p.isVerifiedSeller);
+  }
+
+  if (minPrice && !isNaN(Number(minPrice))) {
+    products = products.filter((p) => p.price >= Number(minPrice));
+  }
+
+  if (maxPrice && !isNaN(Number(maxPrice))) {
+    products = products.filter((p) => p.price <= Number(maxPrice));
+  }
+
+  if (search && typeof search === 'string' && search.trim()) {
+    const q = search.trim().toLowerCase();
+    products = products.filter(
+      (p) =>
+        p.title.toLowerCase().includes(q) ||
+        p.description.toLowerCase().includes(q) ||
+        (p.tags && p.tags.some((t) => t.toLowerCase().includes(q))) ||
+        (p.shopName && p.shopName.toLowerCase().includes(q))
+    );
+  }
+
+  if (sort === 'price_asc') {
+    products.sort((a, b) => a.price - b.price);
+  } else if (sort === 'price_desc') {
+    products.sort((a, b) => b.price - a.price);
+  } else if (sort === 'popular') {
+    products.sort((a, b) => (b.views || 0) - (a.views || 0));
+  } else {
+    // Default newest first
+    products.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  }
+
+  res.json({
+    success: true,
+    total: products.length,
+    products
+  });
+});
+
+// GET /api/products/:id
+app.get('/api/products/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const product = storage.findProductById(id);
+  if (!product) {
+    return res.status(404).json({ success: false, error: 'Product not found.' });
+  }
+  res.json({ success: true, product });
+});
+
+// POST /api/products (Create Product)
+app.post('/api/products', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated', message: 'Authentication required to publish products.' });
+  }
+
+  const {
+    title,
+    description,
+    price,
+    category,
+    images,
+    imageUrl,
+    condition,
+    stock,
+    state,
+    city,
+    location,
+    isDeliveryAvailable,
+    brand,
+    model,
+    shopId
+  } = req.body;
+
+  if (!title || !description || price === undefined || !category) {
+    return res.status(400).json({ success: false, error: 'missing_fields', message: 'Title, description, price, and category are required.' });
+  }
+
+  // Find user's shop if available
+  const userShop = storage.findShopByOwnerId(session.userId) || (shopId ? storage.findShopById(shopId) : undefined);
+  const sellerShopId = userShop?.id || shopId || `shop-user-${session.userId}`;
+  const sellerShopName = userShop?.name || session.name || 'Verified Merchant';
+
+  const newProduct: Product = {
+    id: `prod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    shopId: sellerShopId,
+    shopName: sellerShopName,
+    sellerId: session.userId,
+    sellerName: session.name,
+    title: title.trim(),
+    description: description.trim(),
+    price: Number(price) || 0,
+    category,
+    imageUrl: imageUrl || (Array.isArray(images) && images[0]) || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+    images: Array.isArray(images) && images.length > 0 ? images : [imageUrl || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg'],
+    condition: condition || 'Brand New',
+    stock: stock !== undefined ? Number(stock) : 1,
+    inStock: stock !== undefined ? Number(stock) > 0 : true,
+    views: 0,
+    rating: 0,
+    reviewsCount: 0,
+    createdAt: new Date().toISOString(),
+    isVerifiedSeller: userShop?.isVerified ?? (session.accountType === 'shop_owner' || session.accountType === 'admin'),
+    state: state || userShop?.state || 'Lagos',
+    city: city || userShop?.city || 'Ikeja',
+    location: location || `${city || 'Ikeja'}, ${state || 'Lagos'}`,
+    isDeliveryAvailable: isDeliveryAvailable !== false,
+    brand: brand ? brand.trim() : undefined,
+    model: model ? model.trim() : undefined
+  };
+
+  storage.addProduct(newProduct);
+  res.json({ success: true, product: newProduct });
+});
+
+// PUT /api/products/:id (Update Product)
+app.put('/api/products/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated' });
+  }
+
+  const existing = storage.findProductById(id);
+  if (!existing) {
+    return res.status(404).json({ success: false, error: 'Product not found.' });
+  }
+
+  const isOwner = existing.sellerId === session.userId || (existing.shopId && storage.findShopById(existing.shopId)?.ownerId === session.userId);
+  const isAdmin = isSuperAdminEmail(session.email) || session.accountType === 'admin';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ success: false, error: 'forbidden', message: 'Unauthorized to modify this product listing.' });
+  }
+
+  const updated = storage.updateProduct(id, req.body);
+  res.json({ success: true, product: updated });
+});
+
+// DELETE /api/products/:id
+app.delete('/api/products/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated' });
+  }
+
+  const existing = storage.findProductById(id);
+  if (!existing) {
+    return res.status(404).json({ success: false, error: 'Product not found.' });
+  }
+
+  const isOwner = existing.sellerId === session.userId || (existing.shopId && storage.findShopById(existing.shopId)?.ownerId === session.userId);
+  const isAdmin = isSuperAdminEmail(session.email) || session.accountType === 'admin';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ success: false, error: 'forbidden' });
+  }
+
+  const deleted = storage.deleteProduct(id);
+  res.json({ success: deleted });
+});
+
+// ==========================================
+// PERSISTENT SHOPS API
+// ==========================================
+
+// GET /api/shops
+app.get('/api/shops', (req: Request, res: Response) => {
+  const { state, search } = req.query;
+  let shops = storage.getShops();
+
+  if (state && typeof state === 'string' && state !== 'all') {
+    shops = shops.filter((s) => s.state && s.state.toLowerCase() === state.toLowerCase());
+  }
+
+  if (search && typeof search === 'string' && search.trim()) {
+    const q = search.trim().toLowerCase();
+    shops = shops.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.description.toLowerCase().includes(q) ||
+        (s.categories && s.categories.some((c) => c.toLowerCase().includes(q)))
+    );
+  }
+
+  res.json({
+    success: true,
+    total: shops.length,
+    shops
+  });
+});
+
+// GET /api/shops/:id
+app.get('/api/shops/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const shop = storage.findShopById(id);
+  if (!shop) {
+    return res.status(404).json({ success: false, error: 'Shop not found.' });
+  }
+  res.json({ success: true, shop });
+});
+
+// POST /api/shops (Register Shop)
+app.post('/api/shops', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated', message: 'Authentication required to open a merchant store.' });
+  }
+
+  const {
+    name,
+    description,
+    categories,
+    category,
+    logoUrl,
+    bannerUrl,
+    state,
+    city,
+    address,
+    phone,
+    email,
+    cacNumber
+  } = req.body;
+
+  if (!name || !description) {
+    return res.status(400).json({ success: false, error: 'missing_fields', message: 'Store name and description are required.' });
+  }
+
+  const existingShop = storage.findShopByOwnerId(session.userId);
+  if (existingShop) {
+    return res.status(400).json({ success: false, error: 'already_exists', message: 'You already operate a registered merchant store.', shop: existingShop });
+  }
+
+  const newShop: Shop = {
+    id: `shop-${Date.now()}`,
+    ownerId: session.userId,
+    ownerEmail: session.email,
+    name: name.trim(),
+    description: description.trim(),
+    categories: Array.isArray(categories) ? categories : (category ? [category] : ['General Merchandise']),
+    logoUrl: logoUrl || '',
+    bannerUrl: bannerUrl || '',
+    state: state || 'Lagos',
+    city: city || 'Ikeja',
+    address: address ? address.trim() : undefined,
+    phone: phone || session.phone || '',
+    email: email || session.email || '',
+    cacNumber: cacNumber ? cacNumber.trim() : undefined,
+    isVerified: Boolean(cacNumber),
+    rating: 0,
+    totalSales: 0,
+    followersCount: 0,
+    createdAt: new Date().toISOString(),
+    status: 'active'
+  };
+
+  storage.addShop(newShop);
+  storage.updateUser(session.userId, { accountType: 'shop_owner', shopId: newShop.id });
+
+  res.json({ success: true, shop: newShop });
+});
+
+// PUT /api/shops/:id (Update Shop)
+app.put('/api/shops/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated' });
+  }
+
+  const existing = storage.findShopById(id);
+  if (!existing) {
+    return res.status(404).json({ success: false, error: 'Shop not found.' });
+  }
+
+  const isOwner = existing.ownerId === session.userId;
+  const isAdmin = isSuperAdminEmail(session.email) || session.accountType === 'admin';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ success: false, error: 'forbidden' });
+  }
+
+  const updated = storage.updateShop(id, req.body);
+  res.json({ success: true, shop: updated });
+});
+
+// ==========================================
+// PERSISTENT ADVERTISEMENTS API
+// ==========================================
+
+// GET /api/advertisements
+app.get('/api/advertisements', (req: Request, res: Response) => {
+  const { category, state, search } = req.query;
+  let ads = storage.getAdvertisements();
+
+  if (category && typeof category === 'string' && category !== 'all') {
+    ads = ads.filter((a) => a.category.toLowerCase() === category.toLowerCase());
+  }
+
+  if (state && typeof state === 'string' && state !== 'all') {
+    ads = ads.filter((a) => a.state && a.state.toLowerCase() === state.toLowerCase());
+  }
+
+  if (search && typeof search === 'string' && search.trim()) {
+    const q = search.trim().toLowerCase();
+    ads = ads.filter(
+      (a) =>
+        a.title.toLowerCase().includes(q) ||
+        a.description.toLowerCase().includes(q) ||
+        (a.advertiserName && a.advertiserName.toLowerCase().includes(q))
+    );
+  }
+
+  res.json({
+    success: true,
+    total: ads.length,
+    advertisements: ads
+  });
+});
+
+// GET /api/advertisements/:id
+app.get('/api/advertisements/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const ad = storage.findAdById(id);
+  if (!ad) {
+    return res.status(404).json({ success: false, error: 'Advertisement not found.' });
+  }
+  res.json({ success: true, advertisement: ad });
+});
+
+// POST /api/advertisements
+app.post('/api/advertisements', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated', message: 'Authentication required to post classified ads.' });
+  }
+
+  const {
+    title,
+    description,
+    price,
+    category,
+    imageUrl,
+    images,
+    phone,
+    whatsappNumber,
+    state,
+    city,
+    location,
+    targetAudience,
+    targetStates,
+    budgetNgn,
+    durationDays
+  } = req.body;
+
+  if (!title || !description || !category) {
+    return res.status(400).json({ success: false, error: 'missing_fields', message: 'Title, description, and category are required.' });
+  }
+
+  const newAd: Advertisement = {
+    id: `ad-${Date.now()}`,
+    userId: session.userId,
+    advertiserName: session.name || 'Advertiser',
+    advertiserEmail: session.email,
+    title: title.trim(),
+    description: description.trim(),
+    price: price !== undefined ? Number(price) : undefined,
+    category,
+    imageUrl: imageUrl || (Array.isArray(images) && images[0]) || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+    images: Array.isArray(images) && images.length > 0 ? images : [imageUrl || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg'],
+    phone: phone || session.phone || '',
+    whatsappNumber: whatsappNumber || phone || session.phone || '',
+    state: state || 'Lagos',
+    city: city || 'Ikeja',
+    location: location || `${city || 'Ikeja'}, ${state || 'Lagos'}`,
+    targetAudience: targetAudience || 'General Public',
+    targetStates: Array.isArray(targetStates) ? targetStates : [state || 'Lagos'],
+    budgetNgn: budgetNgn ? Number(budgetNgn) : undefined,
+    durationDays: durationDays ? Number(durationDays) : 30,
+    views: 0,
+    clicks: 0,
+    status: 'active',
+    createdAt: new Date().toISOString()
+  };
+
+  storage.addAdvertisement(newAd);
+  res.json({ success: true, advertisement: newAd });
+});
+
+// DELETE /api/advertisements/:id
+app.delete('/api/advertisements/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated' });
+  }
+
+  const existing = storage.findAdById(id);
+  if (!existing) {
+    return res.status(404).json({ success: false, error: 'Advertisement not found.' });
+  }
+
+  const isOwner = existing.userId === session.userId;
+  const isAdmin = isSuperAdminEmail(session.email) || session.accountType === 'admin';
+
+  if (!isOwner && !isAdmin) {
+    return res.status(403).json({ success: false, error: 'forbidden' });
+  }
+
+  const deleted = storage.deleteAdvertisement(id);
+  res.json({ success: deleted });
+});
+
+// POST /api/advertisements/:id/report
+app.post('/api/advertisements/:id/report', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { reason, details } = req.body;
+  const ad = storage.findAdById(id);
+  if (!ad) {
+    return res.status(404).json({ success: false, error: 'Advertisement not found.' });
+  }
+
+  logAuditEvent('api_denied', 'anonymous', req.ip || '', `Ad reported [${id}]: ${reason || 'Inappropriate content'} - ${details || ''}`);
+  res.json({ success: true, message: 'Report received. Trust & Safety team will review this listing.' });
+});
+
+// ==========================================
+// PERSISTENT ORDERS & CHECKOUT API
+// ==========================================
+
+// GET /api/orders
+app.get('/api/orders', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated' });
+  }
+
+  const allOrders = storage.getOrders();
+  const isFounder = isSuperAdminEmail(session.email) || session.accountType === 'admin';
+
+  let filtered = allOrders;
+  if (!isFounder) {
+    filtered = allOrders.filter(
+      (o) => o.buyerId === session.userId || o.shopId === session.shopId || o.sellerId === session.userId
+    );
+  }
+
+  res.json({
+    success: true,
+    total: filtered.length,
+    orders: filtered
+  });
+});
+
+// GET /api/orders/:id
+app.get('/api/orders/:id', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated' });
+  }
+
+  const order = storage.findOrderById(id);
+  if (!order) {
+    return res.status(404).json({ success: false, error: 'Order not found.' });
+  }
+
+  const isAuthorized =
+    order.buyerId === session.userId ||
+    order.shopId === session.shopId ||
+    order.sellerId === session.userId ||
+    isSuperAdminEmail(session.email) ||
+    session.accountType === 'admin';
+
+  if (!isAuthorized) {
+    return res.status(403).json({ success: false, error: 'forbidden' });
+  }
+
+  res.json({ success: true, order });
+});
+
+// POST /api/orders (Create genuine order & escrow lock)
+app.post('/api/orders', (req: Request, res: Response) => {
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated', message: 'Authentication required to place an order.' });
+  }
+
+  const { items, deliveryAddress, state, city, contactPhone, notes, paymentMethod } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ success: false, error: 'empty_cart', message: 'Cart items are required.' });
+  }
+
+  // Calculate actual total
+  let totalAmount = 0;
+  let sellerShopId = '';
+  let sellerShopName = '';
+  let sellerUserId = '';
+
+  for (const item of items) {
+    const product = storage.findProductById(item.productId);
+    const itemPrice = product ? product.price : (Number(item.price) || 0);
+    const quantity = Number(item.quantity) || 1;
+    totalAmount += itemPrice * quantity;
+
+    if (product) {
+      if (!sellerShopId && product.shopId) sellerShopId = product.shopId;
+      if (!sellerShopName && product.shopName) sellerShopName = product.shopName;
+      if (!sellerUserId && product.sellerId) sellerUserId = product.sellerId;
+    }
+  }
+
+  const orderId = `ASK-ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
+  const trackingNumber = `TRK-NG-${Date.now().toString().slice(-8)}`;
+
+  const newOrder: Order = {
+    id: orderId,
+    trackingNumber,
+    buyerId: session.userId,
+    buyerName: session.name,
+    buyerEmail: session.email,
+    buyerPhone: contactPhone || session.phone || '',
+    shopId: sellerShopId || 'general-marketplace',
+    shopName: sellerShopName || 'Askia Market Merchant',
+    sellerId: sellerUserId || undefined,
+    items: items.map((i) => ({
+      productId: i.productId,
+      productTitle: i.title || i.productTitle || 'Marketplace Item',
+      price: Number(i.price) || 0,
+      quantity: Number(i.quantity) || 1,
+      imageUrl: i.imageUrl || ''
+    })),
+    totalAmount,
+    deliveryAddress: deliveryAddress || 'Address specified during delivery coordination',
+    deliveryState: state || 'Lagos',
+    deliveryCity: city || 'Ikeja',
+    paymentMethod: paymentMethod || 'escrow',
+    paymentStatus: paymentMethod === 'bank_transfer' ? 'pending_verification' : 'escrow_locked',
+    status: 'pending',
+    orderDate: new Date().toISOString(),
+    createdAt: new Date().toISOString()
+  };
+
+  storage.addOrder(newOrder);
+
+  // Record genuine transaction
+  const tx: TransactionRecord = {
+    id: `tx-${Date.now()}`,
+    orderId: newOrder.id,
+    userId: session.userId,
+    userName: session.name,
+    amount: totalAmount,
+    currency: 'NGN',
+    type: 'payment',
+    paymentMethod: paymentMethod || 'escrow',
+    status: paymentMethod === 'bank_transfer' ? 'pending' : 'successful',
+    description: `Payment for Order ${newOrder.id} (${items.length} item${items.length > 1 ? 's' : ''})`,
+    createdAt: new Date().toISOString()
+  };
+  storage.addTransaction(tx);
+
+  // Notify seller if sellerUserId exists
+  if (sellerUserId) {
+    dispatchNotification({
+      recipientUserId: sellerUserId,
+      type: 'order_update',
+      title: 'New Customer Order Received',
+      body: `New order ${newOrder.id} placed by ${session.name} for ₦${totalAmount.toLocaleString()}.`,
+      linkUrl: `/?tab=orders&order_id=${newOrder.id}`,
+      metadata: { orderId: newOrder.id }
+    });
+  }
+
+  res.json({ success: true, order: newOrder, transaction: tx });
+});
+
+// PATCH /api/orders/:id/status (Update Order Fulfillment Status)
+app.patch('/api/orders/:id/status', (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, trackingNumber, deliveryNotes } = req.body;
+  const token = extractSessionToken(req);
+  const session = token ? verifySessionToken(token) : null;
+
+  if (!session) {
+    return res.status(401).json({ success: false, error: 'unauthenticated' });
+  }
+
+  const order = storage.findOrderById(id);
+  if (!order) {
+    return res.status(404).json({ success: false, error: 'Order not found.' });
+  }
+
+  const isAuthorized =
+    order.shopId === session.shopId ||
+    order.sellerId === session.userId ||
+    isSuperAdminEmail(session.email) ||
+    session.accountType === 'admin';
+
+  if (!isAuthorized) {
+    return res.status(403).json({ success: false, error: 'forbidden' });
+  }
+
+  const updates: Partial<Order> = { status };
+  if (trackingNumber) updates.trackingNumber = trackingNumber;
+
+  const updated = storage.updateOrder(id, updates);
+
+  // Notify buyer of status progression
+  dispatchNotification({
+    recipientUserId: order.buyerId,
+    type: 'order_update',
+    title: `Order Status Update: ${order.id}`,
+    body: `Your order status has changed to "${status}".${trackingNumber ? ` Tracking number: ${trackingNumber}.` : ''}`,
+    linkUrl: `/?tab=orders&order_id=${order.id}`,
+    metadata: { orderId: order.id, status }
+  });
+
+  res.json({ success: true, order: updated });
+});
+
+// ==========================================
+// REAL PAYMENT GATEWAY VERIFICATION API
+// ==========================================
+
+// POST /api/payments/verify
+app.post('/api/payments/verify', async (req: Request, res: Response) => {
+  const { gateway, reference, transactionId, orderId, amount } = req.body;
+
+  if (!gateway) {
+    return res.status(400).json({ success: false, error: 'missing_gateway', message: 'Payment gateway identifier required.' });
+  }
+
+  if (gateway === 'paystack') {
+    const paystackSecret = process.env.PAYSTACK_SECRET_KEY;
+    if (!paystackSecret) {
+      // Honest, zero fake response: Return clear unconfigured response
+      return res.status(503).json({
+        success: false,
+        configured: false,
+        gateway: 'paystack',
+        error: 'gateway_not_configured',
+        message: 'Paystack live payment gateway is not configured with PAYSTACK_SECRET_KEY in server environment variables. Cannot simulate or fake live transaction verification.'
+      });
+    }
+
+    try {
+      const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+        headers: {
+          Authorization: `Bearer ${paystackSecret}`
+        }
+      });
+      const data = await verifyRes.json();
+      if (data.status && data.data && data.data.status === 'success') {
+        if (orderId) {
+          storage.updateOrder(orderId, { paymentStatus: 'escrow_locked', status: 'processing' });
+        }
+        return res.json({ success: true, verified: true, data: data.data });
+      } else {
+        return res.status(400).json({ success: false, verified: false, message: data.message || 'Payment verification failed at Paystack gateway.' });
+      }
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: 'gateway_error', message: err.message });
+    }
+  }
+
+  if (gateway === 'flutterwave') {
+    const flutterwaveSecret = process.env.FLUTTERWAVE_SECRET_KEY;
+    if (!flutterwaveSecret) {
+      return res.status(503).json({
+        success: false,
+        configured: false,
+        gateway: 'flutterwave',
+        error: 'gateway_not_configured',
+        message: 'Flutterwave live payment gateway is not configured with FLUTTERWAVE_SECRET_KEY in server environment variables.'
+      });
+    }
+
+    try {
+      const flwRes = await fetch(`https://api.flutterwave.com/v3/transactions/${encodeURIComponent(transactionId || reference)}/verify`, {
+        headers: {
+          Authorization: `Bearer ${flutterwaveSecret}`
+        }
+      });
+      const data = await flwRes.json();
+      if (data.status === 'success' && data.data && data.data.status === 'successful') {
+        if (orderId) {
+          storage.updateOrder(orderId, { paymentStatus: 'escrow_locked', status: 'processing' });
+        }
+        return res.json({ success: true, verified: true, data: data.data });
+      } else {
+        return res.status(400).json({ success: false, verified: false, message: data.message || 'Flutterwave verification failed.' });
+      }
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: 'gateway_error', message: err.message });
+    }
+  }
+
+  if (gateway === 'bank_transfer') {
+    // Record manual escrow bank transfer; marks as pending verification until founder confirms bank credit
+    if (orderId) {
+      storage.updateOrder(orderId, { paymentStatus: 'pending_verification' });
+    }
+    return res.json({
+      success: true,
+      verified: false,
+      status: 'pending_verification',
+      message: 'Bank transfer submission received. Escrow funds will be confirmed upon bank credit reconciliation.'
+    });
+  }
+
+  return res.status(400).json({ success: false, error: 'unknown_gateway', message: `Unknown payment gateway: ${gateway}` });
+});
+
+// ==========================================
+// PLATFORM SETTINGS API
+// ==========================================
+
+app.get('/api/settings', (req: Request, res: Response) => {
+  res.json({ success: true, settings: storage.getPlatformSettings() });
+});
+
+app.post('/api/admin/settings', requireSuperAdmin, (req: Request, res: Response) => {
+  const updated = storage.updatePlatformSettings(req.body);
+  logAuditEvent('settings_update', (req as any).superAdmin.email, req.ip || '', 'Updated platform commission & fee settings');
+  res.json({ success: true, settings: updated });
 });
 
 // ==========================================

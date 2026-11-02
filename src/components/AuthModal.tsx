@@ -450,7 +450,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </a>
 
                 <p className="text-[10px] text-slate-400 text-center">
-                  Executive Super Admin access is restricted to askiasventures@gmail.com
+                  Protected by standard encryption. By signing in, you agree to ASKIA MARKET Terms of Service.
                 </p>
               </div>
 
@@ -475,7 +475,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={loginIdentifier}
                       onChange={(e) => setLoginIdentifier(e.target.value)}
-                      placeholder="e.g. askiasventures@gmail.com or +234 803 412 8899"
+                      placeholder="e.g. yourname@example.com or +234 803 412 8899"
                       className="w-full pl-9 pr-3 py-2.5 bg-[#141414] border border-[#262626] rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#D4AF37]"
                     />
                   </div>
@@ -487,7 +487,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setActiveTab('forgot_password')}
-                      className="text-[11px] text-[#D4AF37] hover:underline"
+                      className="text-[11px] text-[#D4AF37] hover:underline cursor-pointer"
                     >
                       Forgot password?
                     </button>
@@ -505,7 +505,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
                     >
                       {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -515,7 +515,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full py-2.5 bg-[#D4AF37] hover:bg-[#c29f2f] text-black font-bold rounded-xl transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-2.5 bg-[#D4AF37] hover:bg-[#c29f2f] text-black font-bold rounded-xl transition-colors shadow-md flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
                 >
                   {isSubmitting ? (
                     <>
@@ -523,66 +523,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       <span>Authenticating...</span>
                     </>
                   ) : (
-                    <span>Sign In to Dashboard</span>
+                    <span>Sign In</span>
                   )}
                 </button>
               </form>
-
-              {/* Demo Quick Logins for Instant Testing */}
-              <div className="pt-3 border-t border-[#262626] space-y-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Quick Access Testing Accounts (Click to Fill &amp; Test)
-                </span>
-                <div className="grid grid-cols-2 gap-2 text-[11px]">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginIdentifier('askiasventures@gmail.com');
-                      setLoginPassword('SenseiAskia@2026!');
-                    }}
-                    className="p-2 rounded-lg bg-black/60 border border-[#D4AF37]/40 text-left hover:border-[#D4AF37] transition-all"
-                  >
-                    <div className="font-bold text-[#D4AF37]">Sensei Askia</div>
-                    <div className="text-[10px] text-slate-400">Founder &amp; Super Admin</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginIdentifier('adeola@auratechglobal.ng');
-                      setLoginPassword('Merchant@2026!');
-                    }}
-                    className="p-2 rounded-lg bg-black/60 border border-emerald-500/40 text-left hover:border-emerald-400 transition-all"
-                  >
-                    <div className="font-bold text-emerald-400">Babajide Adeleke</div>
-                    <div className="text-[10px] text-slate-400">Verified Merchant</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginIdentifier('chinedu.okafor.trading@gmail.com');
-                      setLoginPassword('Advertiser@2026!');
-                    }}
-                    className="p-2 rounded-lg bg-black/60 border border-amber-500/40 text-left hover:border-amber-400 transition-all"
-                  >
-                    <div className="font-bold text-amber-400">Chinedu Okafor</div>
-                    <div className="text-[10px] text-slate-400">Classified Advertiser</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setLoginIdentifier('buyer@lagos.ng');
-                      setLoginPassword('Customer@2026!');
-                    }}
-                    className="p-2 rounded-lg bg-black/60 border border-slate-700 text-left hover:border-slate-500 transition-all"
-                  >
-                    <div className="font-bold text-slate-200">Customer Buyer</div>
-                    <div className="text-[10px] text-slate-400">Individual Shopper</div>
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 

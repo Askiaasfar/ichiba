@@ -14,6 +14,7 @@ import {
 import { CautionNoticeBanner } from './CautionNoticeBanner';
 import { MediaUpload } from './MediaUpload';
 import { normalizeImageUrl, handleImageError, FALLBACK_VEHICLE_IMAGE } from '../utils/imageUtils';
+import { MARKETPLACE_CATEGORIES } from '../data/categoriesData';
 
 interface AdvertiserPortalProps {
   onOpenPaymentModal: (item: {
@@ -383,11 +384,11 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
                     onChange={(e) => setCategory(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-amber-500"
                   >
-                    <option value="Vehicles & Automotive">Vehicles & Automotive</option>
-                    <option value="Electronics & Computers">Electronics & Computers</option>
-                    <option value="Real Estate & Rentals">Real Estate & Rentals</option>
-                    <option value="Home & Industrial Machinery">Home & Industrial Machinery</option>
-                    <option value="Phones & Tablets">Phones & Tablets</option>
+                    {MARKETPLACE_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

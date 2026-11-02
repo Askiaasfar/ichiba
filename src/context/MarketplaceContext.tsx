@@ -22,7 +22,12 @@ import {
   StaffCompensationRecord,
   AccountTypeConfig,
   AccountType,
-  AppNotification
+  AppNotification,
+  JobListing,
+  JobApplication,
+  WorkGigRequest,
+  GigWorkerResponse,
+  ApplicationStatus
 } from '../types/marketplace';
 import {
   INITIAL_USERS,
@@ -179,6 +184,42 @@ interface MarketplaceContextType {
   deleteAdvertisement: (adId: string) => void;
   reportAdvertisement: (adId: string, reason: string) => void;
   resetDemoData: () => void;
+
+  // Private Founder Access
+  loginFounderPrivate: (password: string) => Promise<{ success: boolean; error?: string }>;
+
+  // Askia Careers & Work
+  jobListings: JobListing[];
+  myApplications: JobApplication[];
+  workGigs: WorkGigRequest[];
+  isLoadingJobs: boolean;
+  isLoadingGigs: boolean;
+  fetchJobs: (filters?: { search?: string; category?: string; state?: string; workplaceType?: string }) => Promise<JobListing[]>;
+  fetchJobById: (id: string) => Promise<JobListing | null>;
+  postJobVacancy: (jobData: Partial<JobListing>) => Promise<{ success: boolean; job?: JobListing; error?: string }>;
+  applyForJob: (jobId: string, application: {
+    applicantName: string;
+    applicantEmail: string;
+    applicantPhone: string;
+    applicantHeadline?: string;
+    applicantLocation?: string;
+    coverLetter?: string;
+    cvFileName?: string;
+    cvFileUrl?: string;
+    portfolioUrl?: string;
+  }) => Promise<{ success: boolean; application?: JobApplication; error?: string }>;
+  fetchMyApplications: () => Promise<JobApplication[]>;
+  fetchEmployerApplications: (employerId: string) => Promise<JobApplication[]>;
+  updateApplicationStatus: (appId: string, status: ApplicationStatus, notes?: string, interviewDate?: string) => Promise<{ success: boolean; application?: JobApplication; error?: string }>;
+  fetchWorkGigs: (filters?: { category?: string; state?: string }) => Promise<WorkGigRequest[]>;
+  postWorkGig: (gigData: Partial<WorkGigRequest>) => Promise<{ success: boolean; gig?: WorkGigRequest; error?: string }>;
+  respondToWorkGig: (gigId: string, responseData: {
+    workerName: string;
+    workerPhone: string;
+    workerSkills: string[];
+    message: string;
+    proposedRateNgn?: number;
+  }) => Promise<{ success: boolean; gig?: WorkGigRequest; error?: string }>;
 }
 
 const STORAGE_KEY = 'ASKIA_MARKET_v1';
@@ -323,6 +364,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return saved ? JSON.parse(saved) : [];
   });
   const [activeToast, setActiveToast] = useState<AppNotification | null>(null);
+
+  // Askia Careers & Work state
+  const [jobListings, setJobListings] = useState<JobListing[]>([]);
+  const [myApplications, setMyApplications] = useState<JobApplication[]>([]);
+  const [workGigs, setWorkGigs] = useState<WorkGigRequest[]>([]);
+  const [isLoadingJobs, setIsLoadingJobs] = useState<boolean>(false);
+  const [isLoadingGigs, setIsLoadingGigs] = useState<boolean>(false);
 
   const unreadNotificationCount = notifications.filter((n) => !n.read).length;
 
@@ -590,10 +638,44 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCurrentRole(u.accountType as UserRole);
   };
 
-  // Check verified server session on boot (Universal for all account types)
+  // Check verified server session and fetch genuine marketplace database records on boot
   useEffect(() => {
     checkUniversalSession();
+    fetchMarketplaceData();
   }, []);
+
+  const fetchMarketplaceData = async () => {
+    try {
+      const [prodRes, shopRes, adRes] = await Promise.all([
+        apiFetch('/api/products').catch(() => null),
+        apiFetch('/api/shops').catch(() => null),
+        apiFetch('/api/advertisements').catch(() => null)
+      ]);
+
+      if (prodRes && prodRes.ok) {
+        const prodData = await prodRes.json();
+        if (prodData.success && Array.isArray(prodData.products)) {
+          setProducts(prodData.products);
+        }
+      }
+
+      if (shopRes && shopRes.ok) {
+        const shopData = await shopRes.json();
+        if (shopData.success && Array.isArray(shopData.shops)) {
+          setShops(shopData.shops);
+        }
+      }
+
+      if (adRes && adRes.ok) {
+        const adData = await adRes.json();
+        if (adData.success && Array.isArray(adData.advertisements)) {
+          setAdvertisements(adData.advertisements);
+        }
+      }
+    } catch (err) {
+      console.warn('Marketplace remote sync note:', err);
+    }
+  };
 
   const checkUniversalSession = async (): Promise<boolean> => {
     try {
@@ -776,6 +858,27 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return { success: true };
     }
     return { success: false, error: res.error || 'Invalid administrator credentials.' };
+  };
+
+  // Private Founder Access: strictly authenticated against backend /api/admin/founder-login
+  const loginFounderPrivate = async (password: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const res = await apiFetch('/api/admin/founder-login', {
+        method: 'POST',
+        body: JSON.stringify({ email: 'askiasventures@gmail.com', password })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        return { success: false, error: data.message || 'Founder authorization failed.' };
+      }
+      if (data.token) {
+        setStoredAuthToken(data.token);
+      }
+      applyAuthenticatedUser(data.user, true);
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: `Connection error: ${err.message}` };
+    }
   };
 
   // Universal User Registration
@@ -1277,46 +1380,32 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
       })
     }).catch((err) => console.warn('Real-time chat dispatch note:', err));
 
-    // Realistic automated seller response simulation for instant feedback
-    setTimeout(() => {
-      setChatThreads((prev) => {
-        const t = prev[listingId];
-        if (!t) return prev;
-
-        const isVerified = t.isVerifiedSeller;
-        const autoReplyText = isVerified
-          ? `Thank you for your inquiry! This item is 100% verified in-stock at our store with return warranty. Would you like to proceed with direct cart checkout or have any other questions?`
-          : `Thanks for the message! Yes, this item is available. Where are you located so we can arrange a physical inspection before you pay?`;
-
-        const replyMsg: ChatMessage = {
-          id: `msg-rep-${Date.now()}`,
-          senderRole: 'seller',
-          senderName: t.sellerName,
-          text: autoReplyText,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-
-        return {
-          ...prev,
-          [listingId]: {
-            ...t,
-            messages: [...t.messages, replyMsg],
-            lastMessageAt: new Date().toISOString()
-          }
-        };
-      });
-    }, 1100);
   };
 
-  // Shop Owner: Add Product
-  const postProduct = (data: Omit<Product, 'id' | 'createdAt' | 'salesCount'>) => {
-    const newProduct: Product = {
+  // Shop Owner: Add Product (Persists to backend database)
+  const postProduct = async (data: Omit<Product, 'id' | 'createdAt' | 'salesCount'>) => {
+    try {
+      const res = await apiFetch('/api/products', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json();
+      if (resData.success && resData.product) {
+        setProducts((prev) => [resData.product, ...prev]);
+        return { success: true, product: resData.product };
+      }
+    } catch (err) {
+      console.warn('Backend product creation fallback:', err);
+    }
+
+    const fallbackProduct: Product = {
       ...data,
       id: `prod-${Date.now()}`,
       createdAt: new Date().toISOString(),
       salesCount: 0
     };
-    setProducts((prev) => [newProduct, ...prev]);
+    setProducts((prev) => [fallbackProduct, ...prev]);
+    return { success: true, product: fallbackProduct };
   };
 
   // Feature Product
@@ -1846,6 +1935,217 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setCart([]);
   };
 
+  // Askia Careers & Work methods
+  const fetchJobs = async (filters?: { search?: string; category?: string; state?: string; workplaceType?: string }): Promise<JobListing[]> => {
+    setIsLoadingJobs(true);
+    try {
+      const params = new URLSearchParams();
+      if (filters?.search) params.append('search', filters.search);
+      if (filters?.category && filters.category !== 'All') params.append('category', filters.category);
+      if (filters?.state && filters.state !== 'All') params.append('state', filters.state);
+      if (filters?.workplaceType && filters.workplaceType !== 'All') params.append('workplaceType', filters.workplaceType);
+
+      const res = await apiFetch(`/api/jobs?${params.toString()}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.jobs)) {
+        setJobListings(data.jobs);
+        return data.jobs;
+      }
+      return [];
+    } catch (err) {
+      console.warn('Failed to fetch jobs:', err);
+      return [];
+    } finally {
+      setIsLoadingJobs(false);
+    }
+  };
+
+  const fetchJobById = async (id: string): Promise<JobListing | null> => {
+    try {
+      const res = await apiFetch(`/api/jobs/${id}`);
+      const data = await res.json();
+      if (data.success && data.job) {
+        return data.job;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const postJobVacancy = async (jobData: Partial<JobListing>): Promise<{ success: boolean; job?: JobListing; error?: string }> => {
+    try {
+      const res = await apiFetch('/api/jobs', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...jobData,
+          employerId: currentUser?.id,
+          employerEmail: currentUser?.email,
+          companyName: jobData.companyName || currentUser?.name || 'Verified Employer'
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.job) {
+        setJobListings((prev) => [data.job, ...prev]);
+        return { success: true, job: data.job };
+      }
+      return { success: false, error: data.message || 'Failed to publish job vacancy.' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const applyForJob = async (jobId: string, application: {
+    applicantName: string;
+    applicantEmail: string;
+    applicantPhone: string;
+    applicantHeadline?: string;
+    applicantLocation?: string;
+    coverLetter?: string;
+    cvFileName?: string;
+    cvFileUrl?: string;
+    portfolioUrl?: string;
+  }): Promise<{ success: boolean; application?: JobApplication; error?: string }> => {
+    try {
+      const res = await apiFetch(`/api/jobs/${jobId}/apply`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...application,
+          applicantUserId: currentUser?.id
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.application) {
+        setMyApplications((prev) => [data.application, ...prev]);
+        return { success: true, application: data.application };
+      }
+      return { success: false, error: data.message || 'Application submission failed.' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const fetchMyApplications = async (): Promise<JobApplication[]> => {
+    try {
+      const res = await apiFetch('/api/jobs/applications/my');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.applications)) {
+        setMyApplications(data.applications);
+        return data.applications;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const fetchEmployerApplications = async (employerId: string): Promise<JobApplication[]> => {
+    try {
+      const res = await apiFetch(`/api/jobs/employer/${employerId}/applications`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.applications)) {
+        return data.applications;
+      }
+      return [];
+    } catch {
+      return [];
+    }
+  };
+
+  const updateApplicationStatus = async (appId: string, status: ApplicationStatus, notes?: string, interviewDate?: string): Promise<{ success: boolean; application?: JobApplication; error?: string }> => {
+    try {
+      const res = await apiFetch(`/api/jobs/applications/${appId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ status, notes, interviewDate })
+      });
+      const data = await res.json();
+      if (data.success && data.application) {
+        setMyApplications((prev) => prev.map((a) => (a.id === appId ? data.application : a)));
+        return { success: true, application: data.application };
+      }
+      return { success: false, error: data.message || 'Failed to update application status.' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const fetchWorkGigs = async (filters?: { category?: string; state?: string }): Promise<WorkGigRequest[]> => {
+    setIsLoadingGigs(true);
+    try {
+      const params = new URLSearchParams();
+      if (filters?.category && filters.category !== 'All') params.append('category', filters.category);
+      if (filters?.state && filters.state !== 'All') params.append('state', filters.state);
+
+      const res = await apiFetch(`/api/gigs?${params.toString()}`);
+      const data = await res.json();
+      if (data.success && Array.isArray(data.gigs)) {
+        setWorkGigs(data.gigs);
+        return data.gigs;
+      }
+      return [];
+    } catch (err) {
+      console.warn('Failed to fetch gigs:', err);
+      return [];
+    } finally {
+      setIsLoadingGigs(false);
+    }
+  };
+
+  const postWorkGig = async (gigData: Partial<WorkGigRequest>): Promise<{ success: boolean; gig?: WorkGigRequest; error?: string }> => {
+    try {
+      const res = await apiFetch('/api/gigs', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...gigData,
+          posterId: currentUser?.id,
+          posterName: gigData.posterName || currentUser?.name || 'Verified Member',
+          posterEmail: gigData.posterEmail || currentUser?.email,
+          posterPhone: gigData.posterPhone || currentUser?.phone || ''
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.gig) {
+        setWorkGigs((prev) => [data.gig, ...prev]);
+        return { success: true, gig: data.gig };
+      }
+      return { success: false, error: data.message || 'Failed to post work request.' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const respondToWorkGig = async (gigId: string, responseData: {
+    workerName: string;
+    workerPhone: string;
+    workerSkills: string[];
+    message: string;
+    proposedRateNgn?: number;
+  }): Promise<{ success: boolean; gig?: WorkGigRequest; error?: string }> => {
+    try {
+      const res = await apiFetch(`/api/gigs/${gigId}/respond`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...responseData,
+          workerUserId: currentUser?.id
+        })
+      });
+      const data = await res.json();
+      if (data.success && data.gig) {
+        setWorkGigs((prev) => prev.map((g) => (g.id === gigId ? data.gig : g)));
+        return { success: true, gig: data.gig };
+      }
+      return { success: false, error: data.message || 'Failed to submit response.' };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Initial load for Jobs & Gigs
+  useEffect(() => {
+    fetchJobs();
+    fetchWorkGigs();
+  }, []);
+
   return (
     <MarketplaceContext.Provider
       value={{
@@ -1933,7 +2233,23 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
         updatePlatformSettings,
         deleteAdvertisement,
         reportAdvertisement,
-        resetDemoData
+        resetDemoData,
+        loginFounderPrivate,
+        jobListings,
+        myApplications,
+        workGigs,
+        isLoadingJobs,
+        isLoadingGigs,
+        fetchJobs,
+        fetchJobById,
+        postJobVacancy,
+        applyForJob,
+        fetchMyApplications,
+        fetchEmployerApplications,
+        updateApplicationStatus,
+        fetchWorkGigs,
+        postWorkGig,
+        respondToWorkGig
       }}
     >
       {children}

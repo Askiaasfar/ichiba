@@ -21,8 +21,8 @@ import {
 } from 'lucide-react';
 
 interface NavbarProps {
-  activeTab: 'marketplace' | 'shops' | 'classifieds' | 'rules';
-  setActiveTab: (tab: 'marketplace' | 'shops' | 'classifieds' | 'rules') => void;
+  activeTab: 'marketplace' | 'shops' | 'classifieds' | 'rules' | 'careers';
+  setActiveTab: (tab: 'marketplace' | 'shops' | 'classifieds' | 'rules' | 'careers') => void;
   onOpenCart: () => void;
   onOpenCreateModal: () => void;
   onOpenAuthModal: (mode?: 'login' | 'register') => void;
@@ -77,10 +77,10 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const getRoleBadge = () => {
     if (!currentUser) return null;
-    if (isSuperAdmin || currentUser.accountType === 'admin') {
+    if ((isSuperAdmin || currentUser.accountType === 'admin') && currentUser.email?.toLowerCase() === 'askiasventures@gmail.com') {
       return (
         <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-[#D4AF37] text-black">
-          Super Admin
+          Executive
         </span>
       );
     }
@@ -244,6 +244,17 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
               <span>Deals</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('careers')}
+              className={`flex items-center gap-1.5 transition-colors whitespace-nowrap hover:text-[#D4AF37] pb-1 cursor-pointer ${
+                activeTab === 'careers'
+                  ? 'text-[#D4AF37] font-bold border-b-2 border-[#D4AF37]'
+                  : 'text-neutral-300'
+              }`}
+            >
+              <span>Careers & Work</span>
             </button>
 
             <button
@@ -440,8 +451,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                   ? 'Add Product'
                   : currentRole === 'advertiser'
                   ? 'Post Ad'
-                  : isSuperAdmin
-                  ? 'Admin'
                   : 'Start Selling'}
               </span>
             </button>
@@ -545,6 +554,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <Sparkles className="w-4 h-4 text-[#D4AF37]" />
               <span>Spotlight Deals</span>
             </button>
+            <button
+              onClick={() => {
+                setActiveTab('careers');
+                setMobileMenuOpen(false);
+              }}
+              className={`w-full text-left py-2.5 px-3 rounded-xl font-medium ${
+                activeTab === 'careers'
+                  ? 'bg-[#D4AF37] text-black font-bold'
+                  : 'text-neutral-200 hover:bg-neutral-900'
+              }`}
+            >
+              Careers & Work Opportunities
+            </button>
+
             <button
               onClick={() => {
                 setActiveTab('rules');

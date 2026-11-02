@@ -103,10 +103,12 @@ export const ListingCard: React.FC<ListingCardProps> = ({ item, onSelect }) => {
               <span className="font-bold text-neutral-400 uppercase tracking-wider truncate max-w-[65%]">
                 {product.category}
               </span>
-              <div className="flex items-center gap-0.5 text-amber-500 font-bold shrink-0">
-                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                <span>{product.rating ? product.rating.toFixed(1) : '4.9'}</span>
-              </div>
+              {Boolean(product.rating && product.rating > 0) ? (
+                <div className="flex items-center gap-0.5 text-amber-500 font-bold shrink-0">
+                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                  <span>{product.rating!.toFixed(1)}</span>
+                </div>
+              ) : null}
             </div>
 
             {/* Title (2 lines max) */}

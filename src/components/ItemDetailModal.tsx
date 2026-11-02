@@ -255,16 +255,24 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 <h1 className="text-xl sm:text-2xl font-bold text-white mt-1 leading-snug">
                   {isProduct ? product?.title : ad?.title}
                 </h1>
-                {isProduct && product?.rating && (
+                {isProduct && product && typeof product.rating === 'number' && product.rating > 0 && (
                   <div className="flex items-center gap-2 mt-2 text-xs">
                     <div className="flex items-center gap-1 text-amber-400 font-bold">
                       <Star className="w-3.5 h-3.5 fill-amber-400" />
                       <span>{product.rating.toFixed(1)}</span>
                     </div>
-                    <span className="text-neutral-500">•</span>
-                    <span className="text-neutral-400 font-mono-numbers">{product.salesCount || 12} sold</span>
-                    <span className="text-neutral-500">•</span>
-                    <span className="text-neutral-400">{product.reviewsCount || 8} reviews</span>
+                    {typeof product.salesCount === 'number' && product.salesCount > 0 && (
+                      <>
+                        <span className="text-neutral-500">•</span>
+                        <span className="text-neutral-400 font-mono-numbers">{product.salesCount} sold</span>
+                      </>
+                    )}
+                    {typeof product.reviewsCount === 'number' && product.reviewsCount > 0 && (
+                      <>
+                        <span className="text-neutral-500">•</span>
+                        <span className="text-neutral-400">{product.reviewsCount} reviews</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

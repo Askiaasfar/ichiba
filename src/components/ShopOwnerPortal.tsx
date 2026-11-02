@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { MediaUpload } from './MediaUpload';
 import { normalizeImageUrl, handleImageError, FALLBACK_PRODUCT_IMAGE } from '../utils/imageUtils';
+import { MARKETPLACE_CATEGORIES } from '../data/categoriesData';
 
 interface ShopOwnerPortalProps {
   onOpenPaymentModal: (item: { type: 'feature_product'; id: string; title: string; price: number }) => void;
@@ -485,11 +486,11 @@ export const ShopOwnerPortal: React.FC<ShopOwnerPortalProps> = ({ onOpenPaymentM
                     onChange={(e) => setNewCategory(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-300 rounded-lg text-xs focus:outline-emerald-500"
                   >
-                    <option value="Electronics & Computers">Electronics & Computers</option>
-                    <option value="Fashion & Apparel">Fashion & Apparel</option>
-                    <option value="Solar & Renewable Power">Solar & Renewable Power</option>
-                    <option value="Phones & Tablets">Phones & Tablets</option>
-                    <option value="Home & Industrial Machinery">Home & Industrial Machinery</option>
+                    {MARKETPLACE_CATEGORIES.map((cat) => (
+                      <option key={cat.id} value={cat.name}>
+                        {cat.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

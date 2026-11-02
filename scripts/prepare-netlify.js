@@ -15,17 +15,27 @@ const backendUrl = (
   process.env.VITE_BACKEND_URL ||
   process.env.VITE_API_URL ||
   process.env.APP_URL ||
-  'https://ais-dev-lhxqmcs4pkbt7hegjjbrdg-519153662077.europe-west2.run.app'
+  ''
 ).replace(/\/$/, '');
 
-console.log(`[Netlify Build Prep] Configuring API proxy target: ${backendUrl}`);
+let redirectsContent = '';
 
-const redirectsContent = `# Netlify API Proxy Route (Routes /api/* to production backend server with streaming support)
+if (backendUrl && !backendUrl.includes('ais-dev-')) {
+  console.log(`[Netlify Build Prep] Configuring API proxy target to live backend: ${backendUrl}`);
+  redirectsContent = `# Netlify API Proxy Route (Routes /api/* to production backend server)
 /api/*  ${backendUrl}/api/:splat  200!
 
 # SPA Client-Side Routing Fallback
 /*      /index.html               200
 `;
+} else {
+  console.log(`[Netlify Build Prep] No external live BACKEND_URL configured (or internal AI Studio dev URL filtered).`);
+  console.log(`[Netlify Build Prep] Generating clean SPA client redirects. Configure BACKEND_URL in Netlify Site Settings when linking to production backend.`);
+  redirectsContent = `# SPA Client-Side Routing Fallback
+/*      /index.html               200
+`;
+}
 
 fs.writeFileSync(redirectsFile, redirectsContent, 'utf8');
-console.log(`[Netlify Build Prep] Successfully generated public/_redirects pointing /api/* -> ${backendUrl}/api/:splat`);
+console.log(`[Netlify Build Prep] Successfully generated public/_redirects`);
+
