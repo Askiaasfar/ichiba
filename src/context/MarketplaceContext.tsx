@@ -1086,6 +1086,12 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       setShops((prev) => [newShop, ...prev]);
       setVerificationRequests((prev) => [verifyReq, ...prev]);
+
+      // Persist genuine shop to backend storage
+      apiFetch('/api/shops', {
+        method: 'POST',
+        body: JSON.stringify(newShop)
+      }).catch((err) => console.warn('Shop backend sync note:', err));
     } else if (data.accountCategory === 'advertiser') {
       // Create starter bundle subscription ready for purchase (₦1,000 for 5 ads)
       const sub: AdSubscription = {
@@ -1478,6 +1484,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }));
 
     setAdvertisements((prev) => [newAd, ...prev]);
+
+    // Persist genuine advertisement to backend storage
+    apiFetch('/api/advertisements', {
+      method: 'POST',
+      body: JSON.stringify(newAd)
+    }).catch((err) => console.warn('Advertisement backend sync note:', err));
+
     return { success: true, pendingApproval: requiresReview };
   };
 
@@ -1658,6 +1671,13 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setTransactions((prev) => [commissionTx, payoutTx, ...prev]);
     setOrders((prev) => [newOrder, ...prev]);
     clearCart();
+
+    // Persist genuine order to backend storage
+    apiFetch('/api/orders', {
+      method: 'POST',
+      body: JSON.stringify(newOrder)
+    }).catch((err) => console.warn('Order backend sync note:', err));
+
     return newOrder;
   };
 

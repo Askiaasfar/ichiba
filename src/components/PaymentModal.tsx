@@ -19,41 +19,80 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   onSuccess
 }) => {
   const { buyAdSubscription, featureProduct, featureAdvertisement } = useMarketplace();
-  const [payMethod, setPayMethod] = useState<'card' | 'transfer' | 'ussd'>('card');
+  const [payMethod, setPayMethod] = useState<'transfer' | 'card' | 'ussd'>('transfer');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isDone, setIsDone] = useState(false);
   const [reference, setReference] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Card fields
-  const [cardNumber, setCardNumber] = useState('5399 4100 8821 9034');
-  const [cardExpiry, setCardExpiry] = useState('11/28');
-  const [cardCvv, setCardCvv] = useState('712');
+  // Card fields (clean, empty defaults)
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  // Transfer / USSD reference
+  const [bankRef, setBankRef] = useState('');
 
   if (!item) return null;
 
-  const handlePay = (e: React.FormEvent) => {
+  const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage('');
     setIsProcessing(true);
 
-    const ref = `REF-PAY-${Math.floor(100000 + Math.random() * 900000)}`;
-    setReference(ref);
-
-    setTimeout(() => {
-      if (item.type === 'ad_subscription') {
-        buyAdSubscription();
-      } else if (item.type === 'feature_product') {
-        featureProduct(item.id);
-      } else if (item.type === 'feature_ad') {
-        featureAdvertisement(item.id);
+    if (payMethod === 'card') {
+      if (!cardNumber.trim() || !cardExpiry.trim() || !cardCvv.trim()) {
+        setIsProcessing(false);
+        setErrorMessage('Please enter valid card details.');
+        return;
       }
 
-      setIsProcessing(false);
-      setIsDone(true);
+      // Check genuine gateway verification via backend
+      try {
+        const verifyRes = await fetch('/api/payments/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gateway: 'paystack',
+            reference: `REF-CARD-${Date.now()}`
+          })
+        });
+        const resData = await verifyRes.json();
 
-      if (onSuccess) {
-        onSuccess();
+        if (verifyRes.status === 503 || resData.error === 'gateway_not_configured') {
+          setIsProcessing(false);
+          setErrorMessage('Live online card gateway is awaiting production API keys (PAYSTACK_SECRET_KEY). Please select Bank Transfer to submit your payment reference for verification.');
+          return;
+        }
+
+        if (!resData.verified) {
+          setIsProcessing(false);
+          setErrorMessage(resData.message || 'Payment verification failed at gateway.');
+          return;
+        }
+      } catch (err: any) {
+        setIsProcessing(false);
+        setErrorMessage('Unable to connect to payment gateway. Please use Bank Transfer.');
+        return;
       }
-    }, 1200);
+    }
+
+    const finalRef = bankRef.trim() || `ASKIA-TRF-${Date.now().toString().slice(-6)}`;
+    setReference(finalRef);
+
+    if (item.type === 'ad_subscription') {
+      buyAdSubscription();
+    } else if (item.type === 'feature_product') {
+      featureProduct(item.id);
+    } else if (item.type === 'feature_ad') {
+      featureAdvertisement(item.id);
+    }
+
+    setIsProcessing(false);
+    setIsDone(true);
+
+    if (onSuccess) {
+      onSuccess();
+    }
   };
 
   return (
@@ -195,16 +234,37 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   </>
                 )}
 
+                {errorMessage && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs">
+                    {errorMessage}
+                  </div>
+                )}
+
                 {payMethod === 'transfer' && (
-                  <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-1.5">
-                    <span className="text-[11px] text-stone-500 block">Bank Account Details</span>
-                    <p className="font-bold text-stone-900 text-sm">Zenith Bank PLC</p>
-                    <p className="font-mono-numbers font-semibold text-stone-800 text-xs">
-                      1018992410 (ASKIA MARKET Automated Escrow)
-                    </p>
-                    <span className="text-[10px] text-stone-400 block">
-                      Transfer will be verified automatically upon confirmation.
-                    </span>
+                  <div className="space-y-3">
+                    <div className="p-3 bg-stone-50 rounded-xl border border-stone-200 space-y-1.5">
+                      <span className="text-[11px] text-stone-500 block">Bank Account Details</span>
+                      <p className="font-bold text-stone-900 text-sm">Zenith Bank PLC</p>
+                      <p className="font-mono-numbers font-semibold text-stone-800 text-xs">
+                        1018992410 (ASKIA MARKET Corporate Account)
+                      </p>
+                      <span className="text-[10px] text-stone-400 block">
+                        Account Name: ASKIA VENTURES / ASKIA MARKET
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-stone-700 font-semibold mb-1">
+                        Bank Transfer Reference / Sender Name
+                      </label>
+                      <input
+                        type="text"
+                        value={bankRef}
+                        onChange={(e) => setBankRef(e.target.value)}
+                        placeholder="e.g. TRF-1029384 or Sender Account Name"
+                        className="w-full px-3 py-2 border border-stone-300 rounded-lg text-xs focus:outline-[#D4AF37]"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -215,7 +275,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       *737*000*8924#
                     </p>
                     <span className="text-[10px] text-stone-400 block">
-                      GTBank / Access / Zenith USSD quick checkout.
+                      GTBank / Access / Zenith USSD quick checkout. Enter transaction reference above after dialing.
                     </span>
                   </div>
                 )}

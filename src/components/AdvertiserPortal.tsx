@@ -27,6 +27,7 @@ interface AdvertiserPortalProps {
 
 export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymentModal }) => {
   const {
+    currentUser,
     currentAdvertiserSubscription,
     advertisements,
     postAdvertisement,
@@ -48,12 +49,12 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
   const [state, setState] = useState('Lagos');
   const [city, setCity] = useState('Ikeja');
   const [description, setDescription] = useState('');
-  const [phone, setPhone] = useState('+234 803 881 2290');
-  const [advertiserName, setAdvertiserName] = useState('Chinedu Okafor');
-  const [imageUrl, setImageUrl] = useState('/assets/images/ad_toyota_vehicle_1793094444379.jpg');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [advertiserName, setAdvertiserName] = useState(currentUser?.name || 'Advertiser');
+  const [imageUrl, setImageUrl] = useState('/assets/images/hero_marketplace_nigeria_1793094442016.jpg');
 
   const myAds = advertisements.filter(
-    (a) => a.advertiserId === 'adv-current-user' || a.advertiserName === 'Chinedu Okafor'
+    (a) => a.advertiserId === currentUser?.id || (currentUser?.email && a.advertiserEmail === currentUser.email) || a.advertiserName === currentUser?.name
   );
 
   const remainingQuota = currentAdvertiserSubscription?.remainingAds ?? 0;
@@ -75,9 +76,9 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
     }
 
     const res = postAdvertisement({
-      advertiserName,
-      advertiserPhone: phone,
-      advertiserEmail: 'chinedu.advertiser@market.ng',
+      advertiserName: advertiserName || currentUser?.name || 'Verified Advertiser',
+      advertiserPhone: phone || currentUser?.phone || '',
+      advertiserEmail: currentUser?.email || 'advertiser@askia.market',
       title,
       description: description || `${title} in clean working condition. Inspect physically before payment.`,
       price: parseFloat(price) || 50000,
@@ -86,7 +87,7 @@ export const AdvertiserPortal: React.FC<AdvertiserPortalProps> = ({ onOpenPaymen
       condition,
       state,
       city,
-      imageUrl,
+      imageUrl: imageUrl || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
       isFeatured: false
     });
 

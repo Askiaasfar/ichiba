@@ -505,7 +505,7 @@ class StorageEngine {
   // --- Notifications ---
   public getNotifications(userId?: string): AppNotification[] {
     if (userId) {
-      return this.db.notifications.filter((n) => n.userId === userId || !n.userId);
+      return this.db.notifications.filter((n) => n.recipientUserId === userId || !n.recipientUserId);
     }
     return this.db.notifications;
   }
@@ -531,7 +531,7 @@ class StorageEngine {
 
   public markAllNotificationsAsRead(userId: string): void {
     this.db.notifications.forEach((n) => {
-      if (n.userId === userId || !n.userId) {
+      if (n.recipientUserId === userId || !n.recipientUserId) {
         n.read = true;
       }
     });
@@ -543,10 +543,18 @@ class StorageEngine {
     return this.db.platformSettings;
   }
 
+  public getPlatformSettings(): PlatformSettings {
+    return this.db.platformSettings;
+  }
+
   public updateSettings(settings: Partial<PlatformSettings>): PlatformSettings {
     this.db.platformSettings = { ...this.db.platformSettings, ...settings };
     this.scheduleSave();
     return this.db.platformSettings;
+  }
+
+  public updatePlatformSettings(settings: Partial<PlatformSettings>): PlatformSettings {
+    return this.updateSettings(settings);
   }
 
   // --- Audit Logs ---

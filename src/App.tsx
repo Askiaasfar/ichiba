@@ -541,58 +541,79 @@ const MainMarketplaceApp: React.FC = () => {
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {shops.map((shop) => {
-                    const shopProds = products.filter((p) => p.shopId === shop.id);
-                    return (
-                      <div
-                        key={shop.id}
-                        className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs flex flex-col justify-between hover:border-emerald-300 transition-all"
-                      >
-                        <div className="relative h-28 bg-slate-900">
-                          <img
-                            src={shop.bannerUrl}
-                            alt={shop.name}
-                            className="w-full h-full object-cover opacity-70"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="absolute top-2.5 right-2.5 px-2 py-0.5 bg-emerald-500 text-slate-950 text-[10px] font-bold rounded-md flex items-center gap-1 shadow-xs">
-                            <ShieldCheck className="w-3 h-3" />
-                            <span>{shop.isVerified ? shop.verificationBadgeNumber : 'Pending'}</span>
-                          </div>
-                        </div>
-
-                        <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                          <div className="space-y-2">
-                            <h3 className="text-base font-bold text-slate-900 leading-snug">
-                              {shop.name}
-                            </h3>
-                            <p className="text-xs text-slate-600 line-clamp-2">
-                              {shop.description}
-                            </p>
-                            <div className="text-xs text-slate-500 flex items-center gap-1">
-                              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="truncate">{shop.address}</span>
+                {shops.length === 0 ? (
+                  <div className="p-12 text-center bg-white rounded-2xl border border-neutral-300 text-neutral-600 space-y-4">
+                    <Store className="w-10 h-10 mx-auto text-neutral-400" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-neutral-900 text-base">No registered merchant stores yet</p>
+                      <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                        Become one of the premier verified merchants on Askia Market. Register your business to start listing products.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setAuthMode('register');
+                        setIsAuthOpen(true);
+                      }}
+                      className="px-5 py-2.5 bg-black hover:bg-[#D4AF37] text-white hover:text-black text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+                    >
+                      Register Your Merchant Shop
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {shops.map((shop) => {
+                      const shopProds = products.filter((p) => p.shopId === shop.id);
+                      return (
+                        <div
+                          key={shop.id}
+                          className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs flex flex-col justify-between hover:border-emerald-300 transition-all"
+                        >
+                          <div className="relative h-28 bg-slate-900">
+                            <img
+                              src={shop.bannerUrl}
+                              alt={shop.name}
+                              className="w-full h-full object-cover opacity-70"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute top-2.5 right-2.5 px-2 py-0.5 bg-emerald-500 text-slate-950 text-[10px] font-bold rounded-md flex items-center gap-1 shadow-xs">
+                              <ShieldCheck className="w-3 h-3" />
+                              <span>{shop.isVerified ? shop.verificationBadgeNumber : 'Pending'}</span>
                             </div>
                           </div>
 
-                          <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                            <span className="text-xs text-slate-500 font-mono-numbers">
-                              {shopProds.length} products
-                            </span>
-                            <button
-                              onClick={() => setSelectedShopId(shop.id)}
-                              className="px-3 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1"
-                            >
-                              <span>Enter Store</span>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </button>
+                          <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
+                            <div className="space-y-2">
+                              <h3 className="text-base font-bold text-slate-900 leading-snug">
+                                {shop.name}
+                              </h3>
+                              <p className="text-xs text-slate-600 line-clamp-2">
+                                {shop.description}
+                              </p>
+                              <div className="text-xs text-slate-500 flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="truncate">{shop.address}</span>
+                              </div>
+                            </div>
+
+                            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                              <span className="text-xs text-slate-500 font-mono-numbers">
+                                {shopProds.length} products
+                              </span>
+                              <button
+                                onClick={() => setSelectedShopId(shop.id)}
+                                className="px-3 py-1.5 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-semibold text-xs rounded-lg transition-colors flex items-center gap-1"
+                              >
+                                <span>Enter Store</span>
+                                <ChevronRight className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -613,17 +634,35 @@ const MainMarketplaceApp: React.FC = () => {
                 <CautionNoticeBanner variant="full" />
 
                 {/* Advertisements Grid (2-Column Mobile) */}
-                <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 pt-2">
-                  {advertisements
-                    .filter((a) => a.status === 'active')
-                    .map((ad) => (
-                      <ListingCard
-                        key={`classified-${ad.id}`}
-                        item={{ type: 'ad', data: ad }}
-                        onSelect={(it) => setSelectedItem(it)}
-                      />
-                    ))}
-                </div>
+                {advertisements.filter((a) => a.status === 'active').length === 0 ? (
+                  <div className="p-12 text-center bg-white rounded-2xl border border-neutral-300 text-neutral-600 space-y-4">
+                    <Megaphone className="w-10 h-10 mx-auto text-neutral-400" />
+                    <div className="space-y-1">
+                      <p className="font-bold text-neutral-900 text-base">No active classified ads currently</p>
+                      <p className="text-xs text-neutral-500 max-w-md mx-auto">
+                        Have items, electronics, vehicles, or services you want to advertise? Post classified ads across Nigeria with Askia Market.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowPostChooser(true)}
+                      className="px-5 py-2.5 bg-black hover:bg-[#D4AF37] text-white hover:text-black text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+                    >
+                      Post a Classified Ad
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 pt-2">
+                    {advertisements
+                      .filter((a) => a.status === 'active')
+                      .map((ad) => (
+                        <ListingCard
+                          key={`classified-${ad.id}`}
+                          item={{ type: 'ad', data: ad }}
+                          onSelect={(it) => setSelectedItem(it)}
+                        />
+                      ))}
+                  </div>
+                )}
               </div>
             )}
 

@@ -13,7 +13,9 @@ import {
   Shop,
   Advertisement,
   Order,
-  TransactionRecord
+  OrderItem,
+  TransactionRecord,
+  VerificationRequest
 } from './src/types/marketplace';
 
 dotenv.config();
@@ -613,7 +615,7 @@ app.get('/api/auth/google/callback', async (req: Request, res: Response) => {
           createdAt: new Date().toISOString(),
           avatarUrl: picture
         };
-        serverUsers.unshift(user);
+        storage.addUser(user as any);
       }
     } else if (!user) {
       // Default auto-provision for new Google sign-in as verified Customer / Buyer
@@ -630,7 +632,7 @@ app.get('/api/auth/google/callback', async (req: Request, res: Response) => {
         createdAt: new Date().toISOString(),
         avatarUrl: picture
       };
-      serverUsers.push(user);
+      storage.addUser(user as any);
     }
 
     // Check suspension
@@ -738,7 +740,7 @@ app.post('/api/auth/google/verify', async (req: Request, res: Response) => {
           createdAt: new Date().toISOString(),
           avatarUrl: picture
         };
-        serverUsers.unshift(user);
+        storage.addUser(user as any);
       }
     } else if (!user) {
       // Check if user has a pending staff application
@@ -772,7 +774,7 @@ app.post('/api/auth/google/verify', async (req: Request, res: Response) => {
         createdAt: new Date().toISOString(),
         avatarUrl: picture
       };
-      serverUsers.push(user);
+      storage.addUser(user as any);
     }
 
     if (user.status === 'suspended' || user.status === 'revoked') {
@@ -892,6 +894,7 @@ app.post('/api/auth/login', (req: Request, res: Response) => {
   // Automatically upgrade legacy password hash to bcrypt
   if (!user.passwordHash.startsWith('$2')) {
     user.passwordHash = hashPassword(password);
+    storage.scheduleSave();
   }
 
   const isFounder = isSuperAdminEmail(user.email) && user.accountType === 'admin';
@@ -994,33 +997,80 @@ app.post('/api/auth/register', (req: Request, res: Response) => {
     createdAt: new Date().toISOString()
   };
 
-  // If merchant registration, register KYC submission record
-  if (finalType === 'shop_owner' && shopDetails) {
-    const kycSub: ServerKycSubmission = {
-      id: `kyc-${Date.now()}`,
-      userId: newUser.id,
-      businessName: shopDetails.shopName || `${name}'s Store`,
-      cacNumber: shopDetails.cacNumber || 'PENDING_REG',
-      registrationType: 'Limited Liability (RC)',
-      registeredAddress: shopDetails.address || 'Commercial District',
-      city: shopDetails.city || 'Ikeja',
-      state: shopDetails.state || 'Lagos',
-      authorizedRepName: name,
-      authorizedRepPhone: phone,
-      authorizedRepEmail: cleanEmail,
-      idType: shopDetails.idType || 'National ID (NIN)',
-      idNumber: shopDetails.idNumber ? `•••• •••• ${shopDetails.idNumber.slice(-4)}` : '•••• •••• 0000',
-      maskedNin: shopDetails.idNumber ? `•••• •••• ${shopDetails.idNumber.slice(-4)}` : undefined,
-      ninConsentGiven: true,
-      ninConsentTimestamp: new Date().toISOString(),
-      status: 'pending',
-      submittedAt: new Date().toISOString(),
-      notes: 'Merchant registered. Awaiting compliance document verification.'
+  // If merchant registration, register Shop, Verification Request, and KYC submission record
+  if (finalType === 'shop_owner') {
+    const shopId = newUser.shopId || `shop-${Date.now()}`;
+    newUser.shopId = shopId;
+    const newShop: Shop = {
+      id: shopId,
+      name: (shopDetails && shopDetails.shopName) || `${name.trim()}'s Store`,
+      slug: ((shopDetails && shopDetails.shopName) || `${name.trim()} Store`).toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      ownerId: newUser.id,
+      ownerName: newUser.name,
+      phone: newUser.phone,
+      email: newUser.email,
+      state: (shopDetails && shopDetails.state) || 'Lagos',
+      city: (shopDetails && shopDetails.city) || 'Ikeja',
+      address: (shopDetails && shopDetails.address) || 'Commercial Hub',
+      description: (shopDetails && shopDetails.description) || `${(shopDetails && shopDetails.shopName) || name}'s Store - Retailer on Askia Market.`,
+      logoUrl: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+      bannerUrl: '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+      isVerified: false,
+      verificationBadgeNumber: 'PENDING_VERIFICATION',
+      verifiedDate: 'Pending Review',
+      rating: 5.0,
+      reviewCount: 0,
+      commissionType: 'percentage',
+      commissionValue: 5,
+      totalSalesCount: 0,
+      totalSalesAmount: 0,
+      subscriptionPlan: 'commission_only'
     };
-    serverKycSubmissions.unshift(kycSub);
+    storage.addShop(newShop);
+
+    if (shopDetails) {
+      const verifyReq: VerificationRequest = {
+        id: `req-${Date.now()}`,
+        shopId: shopId,
+        shopName: shopDetails.shopName || `${name.trim()}'s Store`,
+        ownerName: name.trim(),
+        businessRegNumber: shopDetails.cacNumber || 'PENDING_REG',
+        idType: shopDetails.idType || 'National ID (NIN)',
+        idNumber: shopDetails.idNumber || 'PENDING',
+        phone: phone.trim(),
+        email: cleanEmail,
+        address: shopDetails.address || 'Commercial District',
+        status: 'pending',
+        submittedAt: new Date().toISOString()
+      };
+      storage.addVerificationRequest(verifyReq);
+
+      const kycSub: ServerKycSubmission = {
+        id: `kyc-${Date.now()}`,
+        userId: newUser.id,
+        businessName: shopDetails.shopName || `${name}'s Store`,
+        cacNumber: shopDetails.cacNumber || 'PENDING_REG',
+        registrationType: 'Limited Liability (RC)',
+        registeredAddress: shopDetails.address || 'Commercial District',
+        city: shopDetails.city || 'Ikeja',
+        state: shopDetails.state || 'Lagos',
+        authorizedRepName: name,
+        authorizedRepPhone: phone,
+        authorizedRepEmail: cleanEmail,
+        idType: shopDetails.idType || 'National ID (NIN)',
+        idNumber: shopDetails.idNumber ? `•••• •••• ${shopDetails.idNumber.slice(-4)}` : '•••• •••• 0000',
+        maskedNin: shopDetails.idNumber ? `•••• •••• ${shopDetails.idNumber.slice(-4)}` : undefined,
+        ninConsentGiven: true,
+        ninConsentTimestamp: new Date().toISOString(),
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+        notes: 'Merchant registered. Awaiting compliance document verification.'
+      };
+      serverKycSubmissions.unshift(kycSub);
+    }
   }
 
-  serverUsers.push(newUser);
+  storage.addUser(newUser as any);
 
   // Issue session cookie
   const now = Math.floor(Date.now() / 1000);
@@ -1129,6 +1179,7 @@ app.post('/api/auth/verify-otp', (req: Request, res: Response) => {
     } else {
       user.isEmailVerified = true;
     }
+    storage.scheduleSave();
   }
 
   return res.json({ success: true, message: `${type === 'phone' ? 'Phone number' : 'Email address'} verified successfully.` });
@@ -1185,6 +1236,7 @@ app.post('/api/auth/reset-password', (req: Request, res: Response) => {
   }
 
   user.passwordHash = hashPassword(newPassword);
+  storage.scheduleSave();
   serverOtpStore.delete(key);
   logAuditEvent('settings_update', user.email, req.ip || '', 'User password reset completed');
 
@@ -1422,18 +1474,18 @@ app.get('/api/admin/metrics', requireSuperAdmin, (req: Request, res: Response) =
   const ads = storage.getAdvertisements();
 
   const grossPlatformVolumeNgn = transactions
-    .filter((t) => t.status === 'successful' || t.status === 'completed')
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    .filter((t) => t.status === 'approved')
+    .reduce((sum, t) => sum + (Number(t.amountNgn) || 0), 0);
 
   const escrowBalanceNgn = orders
-    .filter((o) => o.status === 'escrow_locked' || o.status === 'processing')
+    .filter((o) => o.paymentStatus === 'paid_escrow')
     .reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
 
   const settledCommissionsNgn = transactions
-    .filter((t) => t.type === 'commission_deduction')
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    .filter((t) => t.type === 'product_sale_commission')
+    .reduce((sum, t) => sum + (Number(t.amountNgn) || 0), 0);
 
-  const activeShops = shops.filter((s) => s.status === 'active' || s.isVerified).length;
+  const activeShops = shops.filter((s) => s.isVerified).length;
   const pendingVerifications = serverKycSubmissions.filter((k) => k.status === 'pending').length;
   const pendingClassifiedAds = ads.filter((a) => a.status === 'pending_review').length;
 
@@ -3057,11 +3109,17 @@ app.get('/api/products', (req: Request, res: Response) => {
   }
 
   if (state && typeof state === 'string' && state !== 'all') {
-    products = products.filter((p) => p.state && p.state.toLowerCase() === state.toLowerCase());
+    products = products.filter((p) => {
+      const shop = storage.findShopById(p.shopId);
+      return shop ? shop.state.toLowerCase() === state.toLowerCase() : false;
+    });
   }
 
   if (isVerifiedSeller === 'true') {
-    products = products.filter((p) => p.isVerifiedSeller);
+    products = products.filter((p) => {
+      const shop = storage.findShopById(p.shopId);
+      return shop ? shop.isVerified : false;
+    });
   }
 
   if (minPrice && !isNaN(Number(minPrice))) {
@@ -3078,7 +3136,6 @@ app.get('/api/products', (req: Request, res: Response) => {
       (p) =>
         p.title.toLowerCase().includes(q) ||
         p.description.toLowerCase().includes(q) ||
-        (p.tags && p.tags.some((t) => t.toLowerCase().includes(q))) ||
         (p.shopName && p.shopName.toLowerCase().includes(q))
     );
   }
@@ -3088,7 +3145,7 @@ app.get('/api/products', (req: Request, res: Response) => {
   } else if (sort === 'price_desc') {
     products.sort((a, b) => b.price - a.price);
   } else if (sort === 'popular') {
-    products.sort((a, b) => (b.views || 0) - (a.views || 0));
+    products.sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0));
   } else {
     // Default newest first
     products.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
@@ -3124,17 +3181,12 @@ app.post('/api/products', (req: Request, res: Response) => {
     title,
     description,
     price,
+    salePrice,
     category,
     images,
     imageUrl,
     condition,
     stock,
-    state,
-    city,
-    location,
-    isDeliveryAvailable,
-    brand,
-    model,
     shopId
   } = req.body;
 
@@ -3151,28 +3203,22 @@ app.post('/api/products', (req: Request, res: Response) => {
     id: `prod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     shopId: sellerShopId,
     shopName: sellerShopName,
-    sellerId: session.userId,
-    sellerName: session.name,
     title: title.trim(),
     description: description.trim(),
     price: Number(price) || 0,
+    salePrice: salePrice ? Number(salePrice) : undefined,
     category,
     imageUrl: imageUrl || (Array.isArray(images) && images[0]) || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
     images: Array.isArray(images) && images.length > 0 ? images : [imageUrl || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg'],
-    condition: condition || 'Brand New',
+    condition: (condition as 'Brand New' | 'Open Box' | 'Refurbished') || 'Brand New',
     stock: stock !== undefined ? Number(stock) : 1,
-    inStock: stock !== undefined ? Number(stock) > 0 : true,
-    views: 0,
-    rating: 0,
-    reviewsCount: 0,
+    isFeatured: false,
     createdAt: new Date().toISOString(),
-    isVerifiedSeller: userShop?.isVerified ?? (session.accountType === 'shop_owner' || session.accountType === 'admin'),
-    state: state || userShop?.state || 'Lagos',
-    city: city || userShop?.city || 'Ikeja',
-    location: location || `${city || 'Ikeja'}, ${state || 'Lagos'}`,
-    isDeliveryAvailable: isDeliveryAvailable !== false,
-    brand: brand ? brand.trim() : undefined,
-    model: model ? model.trim() : undefined
+    specs: {},
+    salesCount: 0,
+    viewCount: 0,
+    rating: 0,
+    reviewsCount: 0
   };
 
   storage.addProduct(newProduct);
@@ -3194,7 +3240,8 @@ app.put('/api/products/:id', (req: Request, res: Response) => {
     return res.status(404).json({ success: false, error: 'Product not found.' });
   }
 
-  const isOwner = existing.sellerId === session.userId || (existing.shopId && storage.findShopById(existing.shopId)?.ownerId === session.userId);
+  const shop = storage.findShopById(existing.shopId);
+  const isOwner = shop ? shop.ownerId === session.userId : false;
   const isAdmin = isSuperAdminEmail(session.email) || session.accountType === 'admin';
 
   if (!isOwner && !isAdmin) {
@@ -3220,7 +3267,8 @@ app.delete('/api/products/:id', (req: Request, res: Response) => {
     return res.status(404).json({ success: false, error: 'Product not found.' });
   }
 
-  const isOwner = existing.sellerId === session.userId || (existing.shopId && storage.findShopById(existing.shopId)?.ownerId === session.userId);
+  const shop = storage.findShopById(existing.shopId);
+  const isOwner = shop ? shop.ownerId === session.userId : false;
   const isAdmin = isSuperAdminEmail(session.email) || session.accountType === 'admin';
 
   if (!isOwner && !isAdmin) {
@@ -3249,8 +3297,7 @@ app.get('/api/shops', (req: Request, res: Response) => {
     shops = shops.filter(
       (s) =>
         s.name.toLowerCase().includes(q) ||
-        s.description.toLowerCase().includes(q) ||
-        (s.categories && s.categories.some((c) => c.toLowerCase().includes(q)))
+        s.description.toLowerCase().includes(q)
     );
   }
 
@@ -3283,8 +3330,6 @@ app.post('/api/shops', (req: Request, res: Response) => {
   const {
     name,
     description,
-    categories,
-    category,
     logoUrl,
     bannerUrl,
     state,
@@ -3306,25 +3351,28 @@ app.post('/api/shops', (req: Request, res: Response) => {
 
   const newShop: Shop = {
     id: `shop-${Date.now()}`,
-    ownerId: session.userId,
-    ownerEmail: session.email,
     name: name.trim(),
-    description: description.trim(),
-    categories: Array.isArray(categories) ? categories : (category ? [category] : ['General Merchandise']),
-    logoUrl: logoUrl || '',
-    bannerUrl: bannerUrl || '',
-    state: state || 'Lagos',
-    city: city || 'Ikeja',
-    address: address ? address.trim() : undefined,
+    slug: name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    ownerId: session.userId,
+    ownerName: session.name || 'Merchant',
     phone: phone || session.phone || '',
     email: email || session.email || '',
-    cacNumber: cacNumber ? cacNumber.trim() : undefined,
+    state: state || 'Lagos',
+    city: city || 'Ikeja',
+    address: address ? address.trim() : `${city || 'Ikeja'}, ${state || 'Lagos'}`,
+    description: description.trim(),
+    logoUrl: logoUrl || '',
+    bannerUrl: bannerUrl || '',
     isVerified: Boolean(cacNumber),
+    verificationBadgeNumber: cacNumber ? `VER-${cacNumber.trim()}` : '',
+    verifiedDate: cacNumber ? new Date().toISOString() : '',
     rating: 0,
-    totalSales: 0,
-    followersCount: 0,
-    createdAt: new Date().toISOString(),
-    status: 'active'
+    reviewCount: 0,
+    commissionType: 'percentage',
+    commissionValue: 5,
+    totalSalesCount: 0,
+    totalSalesAmount: 0,
+    subscriptionPlan: 'commission_only'
   };
 
   storage.addShop(newShop);
@@ -3420,14 +3468,9 @@ app.post('/api/advertisements', (req: Request, res: Response) => {
     imageUrl,
     images,
     phone,
-    whatsappNumber,
+    condition,
     state,
-    city,
-    location,
-    targetAudience,
-    targetStates,
-    budgetNgn,
-    durationDays
+    city
   } = req.body;
 
   if (!title || !description || !category) {
@@ -3436,28 +3479,22 @@ app.post('/api/advertisements', (req: Request, res: Response) => {
 
   const newAd: Advertisement = {
     id: `ad-${Date.now()}`,
-    userId: session.userId,
+    advertiserId: session.userId,
     advertiserName: session.name || 'Advertiser',
+    advertiserPhone: phone || session.phone || '',
     advertiserEmail: session.email,
     title: title.trim(),
     description: description.trim(),
-    price: price !== undefined ? Number(price) : undefined,
+    price: Number(price) || 0,
+    isNegotiable: Boolean(req.body.isNegotiable),
     category,
-    imageUrl: imageUrl || (Array.isArray(images) && images[0]) || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
-    images: Array.isArray(images) && images.length > 0 ? images : [imageUrl || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg'],
-    phone: phone || session.phone || '',
-    whatsappNumber: whatsappNumber || phone || session.phone || '',
+    condition: (condition as 'Brand New' | 'Foreign Used / London Used' | 'Locally Used') || 'Locally Used',
     state: state || 'Lagos',
     city: city || 'Ikeja',
-    location: location || `${city || 'Ikeja'}, ${state || 'Lagos'}`,
-    targetAudience: targetAudience || 'General Public',
-    targetStates: Array.isArray(targetStates) ? targetStates : [state || 'Lagos'],
-    budgetNgn: budgetNgn ? Number(budgetNgn) : undefined,
-    durationDays: durationDays ? Number(durationDays) : 30,
-    views: 0,
-    clicks: 0,
-    status: 'active',
-    createdAt: new Date().toISOString()
+    imageUrl: imageUrl || (Array.isArray(images) && images[0]) || '/assets/images/hero_marketplace_nigeria_1793094442016.jpg',
+    isFeatured: false,
+    createdAt: new Date().toISOString(),
+    status: 'active'
   };
 
   storage.addAdvertisement(newAd);
@@ -3479,7 +3516,7 @@ app.delete('/api/advertisements/:id', (req: Request, res: Response) => {
     return res.status(404).json({ success: false, error: 'Advertisement not found.' });
   }
 
-  const isOwner = existing.userId === session.userId;
+  const isOwner = existing.advertiserId === session.userId;
   const isAdmin = isSuperAdminEmail(session.email) || session.accountType === 'admin';
 
   if (!isOwner && !isAdmin) {
@@ -3522,7 +3559,12 @@ app.get('/api/orders', (req: Request, res: Response) => {
   let filtered = allOrders;
   if (!isFounder) {
     filtered = allOrders.filter(
-      (o) => o.buyerId === session.userId || o.shopId === session.shopId || o.sellerId === session.userId
+      (o) =>
+        o.buyerEmail.toLowerCase() === session.email.toLowerCase() ||
+        o.items.some((item) => {
+          const s = storage.findShopById(item.shopId);
+          return s ? s.ownerId === session.userId : false;
+        })
     );
   }
 
@@ -3549,9 +3591,11 @@ app.get('/api/orders/:id', (req: Request, res: Response) => {
   }
 
   const isAuthorized =
-    order.buyerId === session.userId ||
-    order.shopId === session.shopId ||
-    order.sellerId === session.userId ||
+    order.buyerEmail.toLowerCase() === session.email.toLowerCase() ||
+    order.items.some((item) => {
+      const s = storage.findShopById(item.shopId);
+      return s ? s.ownerId === session.userId : false;
+    }) ||
     isSuperAdminEmail(session.email) ||
     session.accountType === 'admin';
 
@@ -3567,63 +3611,54 @@ app.post('/api/orders', (req: Request, res: Response) => {
   const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
 
-  if (!session) {
-    return res.status(401).json({ success: false, error: 'unauthenticated', message: 'Authentication required to place an order.' });
+  const buyerEmail = session?.email || req.body.buyerEmail || req.body.email;
+  const buyerName = session?.name || req.body.buyerName || req.body.name || 'Askia Market Buyer';
+  const buyerPhone = req.body.buyerPhone || req.body.contactPhone || session?.phone || '';
+
+  if (!buyerEmail) {
+    return res.status(400).json({ success: false, error: 'missing_email', message: 'Valid buyer email is required.' });
   }
 
-  const { items, deliveryAddress, state, city, contactPhone, notes, paymentMethod } = req.body;
+  const { items, deliveryAddress, state, city } = req.body;
 
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ success: false, error: 'empty_cart', message: 'Cart items are required.' });
   }
 
-  // Calculate actual total
-  let totalAmount = 0;
-  let sellerShopId = '';
-  let sellerShopName = '';
-  let sellerUserId = '';
+  const orderItems: OrderItem[] = items.map((i: any) => {
+    const product = storage.findProductById(i.productId);
+    const itemPrice = product ? product.price : (Number(i.price) || 0);
+    const sId = product?.shopId || i.shopId || 'shop-direct';
+    const sName = product?.shopName || i.shopName || 'Askia Market Merchant';
+    return {
+      productId: i.productId,
+      title: i.title || product?.title || 'Marketplace Item',
+      price: itemPrice,
+      quantity: Number(i.quantity) || 1,
+      shopId: sId,
+      shopName: sName
+    };
+  });
 
-  for (const item of items) {
-    const product = storage.findProductById(item.productId);
-    const itemPrice = product ? product.price : (Number(item.price) || 0);
-    const quantity = Number(item.quantity) || 1;
-    totalAmount += itemPrice * quantity;
-
-    if (product) {
-      if (!sellerShopId && product.shopId) sellerShopId = product.shopId;
-      if (!sellerShopName && product.shopName) sellerShopName = product.shopName;
-      if (!sellerUserId && product.sellerId) sellerUserId = product.sellerId;
-    }
-  }
-
-  const orderId = `ASK-ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
-  const trackingNumber = `TRK-NG-${Date.now().toString().slice(-8)}`;
+  const totalAmount = req.body.totalAmount ? Number(req.body.totalAmount) : orderItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const settings = storage.getPlatformSettings();
+  const platformCommission = req.body.platformCommission ? Number(req.body.platformCommission) : Math.round((totalAmount * (settings.commissionRatePercent || 5)) / 100);
+  const merchantPayout = totalAmount - platformCommission;
 
   const newOrder: Order = {
-    id: orderId,
-    trackingNumber,
-    buyerId: session.userId,
-    buyerName: session.name,
-    buyerEmail: session.email,
-    buyerPhone: contactPhone || session.phone || '',
-    shopId: sellerShopId || 'general-marketplace',
-    shopName: sellerShopName || 'Askia Market Merchant',
-    sellerId: sellerUserId || undefined,
-    items: items.map((i) => ({
-      productId: i.productId,
-      productTitle: i.title || i.productTitle || 'Marketplace Item',
-      price: Number(i.price) || 0,
-      quantity: Number(i.quantity) || 1,
-      imageUrl: i.imageUrl || ''
-    })),
+    id: req.body.id || `ORD-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`,
+    buyerName,
+    buyerPhone,
+    buyerEmail,
+    deliveryAddress: deliveryAddress || req.body.address || 'Address specified during delivery coordination',
+    city: city || 'Ikeja',
+    state: state || 'Lagos',
+    items: orderItems,
     totalAmount,
-    deliveryAddress: deliveryAddress || 'Address specified during delivery coordination',
-    deliveryState: state || 'Lagos',
-    deliveryCity: city || 'Ikeja',
-    paymentMethod: paymentMethod || 'escrow',
-    paymentStatus: paymentMethod === 'bank_transfer' ? 'pending_verification' : 'escrow_locked',
-    status: 'pending',
-    orderDate: new Date().toISOString(),
+    platformCommission,
+    merchantPayout,
+    status: req.body.status || 'confirmed',
+    paymentStatus: req.body.paymentStatus || 'paid_escrow',
     createdAt: new Date().toISOString()
   };
 
@@ -3632,30 +3667,16 @@ app.post('/api/orders', (req: Request, res: Response) => {
   // Record genuine transaction
   const tx: TransactionRecord = {
     id: `tx-${Date.now()}`,
-    orderId: newOrder.id,
-    userId: session.userId,
-    userName: session.name,
-    amount: totalAmount,
-    currency: 'NGN',
-    type: 'payment',
-    paymentMethod: paymentMethod || 'escrow',
-    status: paymentMethod === 'bank_transfer' ? 'pending' : 'successful',
-    description: `Payment for Order ${newOrder.id} (${items.length} item${items.length > 1 ? 's' : ''})`,
-    createdAt: new Date().toISOString()
+    type: 'product_sale_commission',
+    amountNgn: platformCommission,
+    description: `Platform Commission for Order ${newOrder.id}`,
+    reference: `REF-ORD-${newOrder.id}`,
+    createdAt: new Date().toISOString(),
+    userEmail: buyerEmail,
+    status: 'approved',
+    approvedBy: 'Escrow Engine'
   };
   storage.addTransaction(tx);
-
-  // Notify seller if sellerUserId exists
-  if (sellerUserId) {
-    dispatchNotification({
-      recipientUserId: sellerUserId,
-      type: 'order_update',
-      title: 'New Customer Order Received',
-      body: `New order ${newOrder.id} placed by ${session.name} for ₦${totalAmount.toLocaleString()}.`,
-      linkUrl: `/?tab=orders&order_id=${newOrder.id}`,
-      metadata: { orderId: newOrder.id }
-    });
-  }
 
   res.json({ success: true, order: newOrder, transaction: tx });
 });
@@ -3663,7 +3684,7 @@ app.post('/api/orders', (req: Request, res: Response) => {
 // PATCH /api/orders/:id/status (Update Order Fulfillment Status)
 app.patch('/api/orders/:id/status', (req: Request, res: Response) => {
   const { id } = req.params;
-  const { status, trackingNumber, deliveryNotes } = req.body;
+  const { status, paymentStatus } = req.body;
   const token = extractSessionToken(req);
   const session = token ? verifySessionToken(token) : null;
 
@@ -3677,8 +3698,10 @@ app.patch('/api/orders/:id/status', (req: Request, res: Response) => {
   }
 
   const isAuthorized =
-    order.shopId === session.shopId ||
-    order.sellerId === session.userId ||
+    order.items.some((item) => {
+      const s = storage.findShopById(item.shopId);
+      return s ? s.ownerId === session.userId : false;
+    }) ||
     isSuperAdminEmail(session.email) ||
     session.accountType === 'admin';
 
@@ -3686,21 +3709,15 @@ app.patch('/api/orders/:id/status', (req: Request, res: Response) => {
     return res.status(403).json({ success: false, error: 'forbidden' });
   }
 
-  const updates: Partial<Order> = { status };
-  if (trackingNumber) updates.trackingNumber = trackingNumber;
+  const updates: Partial<Order> = {};
+  if (status && ['confirmed', 'dispatched', 'delivered'].includes(status)) {
+    updates.status = status as 'confirmed' | 'dispatched' | 'delivered';
+  }
+  if (paymentStatus && ['paid_escrow', 'payout_approved', 'payout_released'].includes(paymentStatus)) {
+    updates.paymentStatus = paymentStatus as 'paid_escrow' | 'payout_approved' | 'payout_released';
+  }
 
   const updated = storage.updateOrder(id, updates);
-
-  // Notify buyer of status progression
-  dispatchNotification({
-    recipientUserId: order.buyerId,
-    type: 'order_update',
-    title: `Order Status Update: ${order.id}`,
-    body: `Your order status has changed to "${status}".${trackingNumber ? ` Tracking number: ${trackingNumber}.` : ''}`,
-    linkUrl: `/?tab=orders&order_id=${order.id}`,
-    metadata: { orderId: order.id, status }
-  });
-
   res.json({ success: true, order: updated });
 });
 
@@ -3710,7 +3727,7 @@ app.patch('/api/orders/:id/status', (req: Request, res: Response) => {
 
 // POST /api/payments/verify
 app.post('/api/payments/verify', async (req: Request, res: Response) => {
-  const { gateway, reference, transactionId, orderId, amount } = req.body;
+  const { gateway, reference, transactionId, orderId } = req.body;
 
   if (!gateway) {
     return res.status(400).json({ success: false, error: 'missing_gateway', message: 'Payment gateway identifier required.' });
@@ -3738,7 +3755,7 @@ app.post('/api/payments/verify', async (req: Request, res: Response) => {
       const data = await verifyRes.json();
       if (data.status && data.data && data.data.status === 'success') {
         if (orderId) {
-          storage.updateOrder(orderId, { paymentStatus: 'escrow_locked', status: 'processing' });
+          storage.updateOrder(orderId, { paymentStatus: 'paid_escrow' });
         }
         return res.json({ success: true, verified: true, data: data.data });
       } else {
@@ -3770,7 +3787,7 @@ app.post('/api/payments/verify', async (req: Request, res: Response) => {
       const data = await flwRes.json();
       if (data.status === 'success' && data.data && data.data.status === 'successful') {
         if (orderId) {
-          storage.updateOrder(orderId, { paymentStatus: 'escrow_locked', status: 'processing' });
+          storage.updateOrder(orderId, { paymentStatus: 'paid_escrow' });
         }
         return res.json({ success: true, verified: true, data: data.data });
       } else {
@@ -3783,9 +3800,6 @@ app.post('/api/payments/verify', async (req: Request, res: Response) => {
 
   if (gateway === 'bank_transfer') {
     // Record manual escrow bank transfer; marks as pending verification until founder confirms bank credit
-    if (orderId) {
-      storage.updateOrder(orderId, { paymentStatus: 'pending_verification' });
-    }
     return res.json({
       success: true,
       verified: false,
