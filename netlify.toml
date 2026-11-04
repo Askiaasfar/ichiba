@@ -1,8 +1,15 @@
 [build]
   command = "npm run build"
   publish = "dist"
+  functions = "netlify/functions"
 
-# SPA Fallback for client-side routing (API proxy is configured dynamically in _redirects via prepare-netlify.js)
+# API proxy: route /api/* requests to Netlify serverless function
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# SPA Fallback for client-side routing
 [[redirects]]
   from = "/*"
   to = "/index.html"

@@ -35,14 +35,14 @@ export const INITIAL_USERS: UserAccount[] = [
     createdAt: '2026-01-01T00:00:00Z'
   },
   {
-    id: 'usr-founder-secondary',
-    name: 'Askia Executive',
+    id: 'usr-staff-ops-1',
+    name: 'Askia Operations Staff',
     email: 'askiabusiness18@gmail.com',
     phone: '+234 800 000 0002',
-    accountType: 'admin',
-    adminRole: 'super_admin',
-    jobTitle: 'Executive Office',
-    department: 'Executive Office',
+    accountType: 'staff',
+    adminRole: 'moderation_admin',
+    jobTitle: 'Operations Officer',
+    department: 'Marketplace Operations',
     createdAt: '2026-01-01T00:00:00Z'
   }
 ];

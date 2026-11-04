@@ -1,0 +1,79 @@
+{
+  "users": [
+    {
+      "id": "usr-founder-1",
+      "name": "Askia Founder",
+      "email": "askiasventures@gmail.com",
+      "phone": "+234 800 000 0001",
+      "passwordHash": "$2b$10$i3A/T4gTatO4DTI2E0BVwewCbVMPW09Wwd0EKOmJ2XGLA4FzMCjtu",
+      "accountType": "admin",
+      "adminRole": "super_admin",
+      "jobTitle": "Founder & Super Administrator",
+      "department": "Executive Office",
+      "permissions": [
+        "all_permissions",
+        "manage_admins",
+        "approve_shops",
+        "approve_ads",
+        "approve_payments",
+        "platform_settings",
+        "system_security"
+      ],
+      "status": "active",
+      "isEmailVerified": true,
+      "isPhoneVerified": true,
+      "createdAt": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "usr-staff-ops-1",
+      "name": "Askia Operations Staff",
+      "email": "askiabusiness18@gmail.com",
+      "phone": "+234 800 000 0002",
+      "passwordHash": "$2b$10$i3A/T4gTatO4DTI2E0BVwewCbVMPW09Wwd0EKOmJ2XGLA4FzMCjtu",
+      "accountType": "staff",
+      "adminRole": "operations_manager",
+      "jobTitle": "Operations Officer",
+      "department": "Marketplace Operations",
+      "permissions": [
+        "operations_oversight",
+        "review_listings"
+      ],
+      "status": "active",
+      "isEmailVerified": true,
+      "isPhoneVerified": true,
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "shops": [],
+  "products": [],
+  "advertisements": [],
+  "orders": [],
+  "transactions": [],
+  "verificationRequests": [],
+  "chatThreads": {},
+  "notifications": [],
+  "jobListings": [],
+  "jobApplications": [],
+  "workGigs": [],
+  "gigResponses": [],
+  "platformSettings": {
+    "commissionRatePercent": 5,
+    "flatFeePerSaleNgn": 250,
+    "activeCommissionModel": "percentage",
+    "adPackagePriceNgn": 1000,
+    "adPackageCount": 5,
+    "featureProductPriceNgn": 1500,
+    "featureAdPriceNgn": 800,
+    "requireAdApproval": false
+  },
+  "auditLogs": [
+    {
+      "id": "aud-1793797176712",
+      "timestamp": "2026-11-04T12:59:36.712Z",
+      "type": "system_init",
+      "email": "askiasventures@gmail.com",
+      "ip": "127.0.0.1",
+      "details": "Production database initialized with zero fake records."
+    }
+  ]
+}

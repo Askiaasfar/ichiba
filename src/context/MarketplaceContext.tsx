@@ -244,7 +244,7 @@ export const MarketplaceProvider: React.FC<{ children: React.ReactNode }> = ({ c
   });
 
   const currentUser = users.find((u) => u.id === currentUserId) || users.find((u) => u.accountType === 'buyer') || users[0];
-  const isSuperAdmin = (currentUser?.email?.toLowerCase() === 'askiasventures@gmail.com' || currentUser?.email?.toLowerCase() === 'askiabusiness18@gmail.com') && currentUser?.accountType === 'admin';
+  const isSuperAdmin = currentUser?.email?.toLowerCase() === 'askiasventures@gmail.com' && currentUser?.accountType === 'admin';
 
   // Verified server-side Super Admin session from HTTP-only cookie
   const [serverAdminSession, setServerAdminSession] = useState<{

@@ -37,7 +37,7 @@ const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || '';
 const FACEBOOK_CALLBACK_URL = process.env.FACEBOOK_CALLBACK_URL || `${APP_URL}/api/auth/facebook/callback`;
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjB-meeNuWn_wQhpq63qIGupnvQBQ';
 // Only authorized production Founder Super Admin
-const SUPER_ADMIN_RAW = process.env.SUPER_ADMIN_EMAIL || 'askiasventures@gmail.com,askiabusiness18@gmail.com';
+const SUPER_ADMIN_RAW = process.env.SUPER_ADMIN_EMAIL || 'askiasventures@gmail.com';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'askia_market_production_super_admin_secret_key_2026';
 
 // Parse allowed Super Admin emails (trimmed, lowercased)
@@ -3849,7 +3849,12 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-  console.error('Fatal server startup error:', err);
-  process.exit(1);
-});
+export { app };
+
+// Only bind to TCP port if not running in a serverless environment (Netlify/AWS Lambda)
+if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  startServer().catch((err) => {
+    console.error('Fatal server startup error:', err);
+    process.exit(1);
+  });
+}

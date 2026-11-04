@@ -21,18 +21,20 @@ const backendUrl = (
 let redirectsContent = '';
 
 if (backendUrl && !backendUrl.includes('ais-dev-')) {
-  console.log(`[Netlify Build Prep] Configuring API proxy target to live backend: ${backendUrl}`);
-  redirectsContent = `# Netlify API Proxy Route (Routes /api/* to production backend server)
+  console.log(`[Netlify Build Prep] Configuring API proxy target to live external backend: ${backendUrl}`);
+  redirectsContent = `# Netlify API Proxy Route (Routes /api/* to external production backend server)
 /api/*  ${backendUrl}/api/:splat  200!
 
 # SPA Client-Side Routing Fallback
 /*      /index.html               200
 `;
 } else {
-  console.log(`[Netlify Build Prep] No external live BACKEND_URL configured (or internal AI Studio dev URL filtered).`);
-  console.log(`[Netlify Build Prep] Generating clean SPA client redirects. Configure BACKEND_URL in Netlify Site Settings when linking to production backend.`);
-  redirectsContent = `# SPA Client-Side Routing Fallback
-/*      /index.html               200
+  console.log(`[Netlify Build Prep] No external BACKEND_URL configured. Routing /api/* to built-in Netlify serverless function (/.netlify/functions/api/:splat).`);
+  redirectsContent = `# Netlify API Serverless Function Route
+/api/*  /.netlify/functions/api/:splat  200
+
+# SPA Client-Side Routing Fallback
+/*      /index.html                     200
 `;
 }
 

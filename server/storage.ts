@@ -18,11 +18,22 @@ import {
   AppNotification
 } from '../src/types/marketplace';
 
+import pg from 'pg';
+const { Pool } = pg;
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT_DIR = path.resolve(__dirname, '..');
 const DATA_DIR = path.resolve(ROOT_DIR, 'data');
 const DB_FILE = path.resolve(DATA_DIR, 'marketplace_db.json');
+
+// Check for PostgreSQL connection parameters (e.g., Neon, Supabase, Cloud SQL, Railway, RDS)
+const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
+const hasPgConfig = Boolean(
+  DATABASE_URL ||
+  (process.env.PGHOST && process.env.PGDATABASE) ||
+  (process.env.SQL_HOST && process.env.SQL_DATABASE)
+);
 
 export interface ServerUser {
   id: string;
@@ -107,16 +118,16 @@ function getInitialDatabase(): DatabaseSchema {
         createdAt: '2026-01-01T00:00:00Z'
       },
       {
-        id: 'usr-founder-2',
-        name: 'Askia Business Executive',
+        id: 'usr-staff-ops-1',
+        name: 'Askia Operations Staff',
         email: 'askiabusiness18@gmail.com',
         phone: '+234 800 000 0002',
         passwordHash: hash,
-        accountType: 'admin',
-        adminRole: 'super_admin',
-        jobTitle: 'Executive Office',
-        department: 'Executive Office',
-        permissions: ['all_permissions', 'manage_admins', 'approve_shops', 'approve_ads', 'approve_payments', 'platform_settings', 'system_security'],
+        accountType: 'staff',
+        adminRole: 'operations_manager',
+        jobTitle: 'Operations Officer',
+        department: 'Marketplace Operations',
+        permissions: ['operations_oversight', 'review_listings'],
         status: 'active',
         isEmailVerified: true,
         isPhoneVerified: true,
@@ -152,12 +163,97 @@ function getInitialDatabase(): DatabaseSchema {
 class StorageEngine {
   private db: DatabaseSchema;
   private saveTimeout: NodeJS.Timeout | null = null;
+  private pool: pg.Pool | null = null;
+  private pgReady = false;
 
   constructor() {
-    this.db = this.load();
+    this.db = this.loadLocal();
+    if (hasPgConfig) {
+      this.initPostgres().catch((err) => {
+        console.warn('[StorageEngine] PostgreSQL initialization notice:', err.message);
+      });
+    } else {
+      console.log('[StorageEngine] Running with local JSON database (data/marketplace_db.json). Note: For multi-instance Cloud Run or distributed serverless deployments, set DATABASE_URL to ensure shared cross-instance persistence.');
+    }
   }
 
-  private load(): DatabaseSchema {
+  private async initPostgres(): Promise<void> {
+    try {
+      this.pool = new Pool({
+        connectionString: DATABASE_URL || undefined,
+        host: process.env.PGHOST || process.env.SQL_HOST,
+        port: Number(process.env.PGPORT || process.env.SQL_PORT || 5432),
+        database: process.env.PGDATABASE || process.env.SQL_DATABASE,
+        user: process.env.PGUSER || process.env.SQL_USER,
+        password: process.env.PGPASSWORD || process.env.SQL_PASSWORD,
+        ssl: process.env.NODE_ENV === 'production' && !DATABASE_URL.includes('localhost') ? { rejectUnauthorized: false } : undefined,
+        max: 10,
+        idleTimeoutMillis: 30000
+      });
+
+      // Ensure key-value collection table exists
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS askia_collections (
+          collection_name VARCHAR(64) PRIMARY KEY,
+          data JSONB NOT NULL,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `);
+
+      // Load collections from PostgreSQL if populated; otherwise seed with current local state
+      const res = await this.pool.query('SELECT collection_name, data FROM askia_collections');
+      if (res.rows.length > 0) {
+        console.log(`[StorageEngine] Hydrating storage from PostgreSQL (${res.rows.length} collections loaded)`);
+        for (const row of res.rows) {
+          if (row.collection_name in this.db) {
+            (this.db as any)[row.collection_name] = row.data;
+          }
+        }
+      } else {
+        console.log('[StorageEngine] PostgreSQL connected. Seeding initial schema from clean production state.');
+        await this.syncAllToPostgres();
+      }
+
+      this.pgReady = true;
+      console.log('[StorageEngine] PostgreSQL durable persistence active and ready.');
+    } catch (err: any) {
+      console.error('[StorageEngine] Failed to connect to PostgreSQL:', err.message);
+      this.pgReady = false;
+    }
+  }
+
+  private async syncAllToPostgres(): Promise<void> {
+    if (!this.pool) return;
+    const collections = [
+      'users', 'shops', 'products', 'advertisements', 'orders',
+      'transactions', 'verificationRequests', 'chatThreads', 'notifications',
+      'jobListings', 'jobApplications', 'workGigs', 'gigResponses',
+      'platformSettings', 'auditLogs'
+    ];
+    for (const name of collections) {
+      const data = (this.db as any)[name];
+      if (data !== undefined) {
+        await this.pool.query(
+          `INSERT INTO askia_collections (collection_name, data, updated_at)
+           VALUES ($1, $2, NOW())
+           ON CONFLICT (collection_name)
+           DO UPDATE SET data = $2, updated_at = NOW();`,
+          [name, JSON.stringify(data)]
+        ).catch((e: any) => console.error(`[StorageEngine] Error seeding ${name}:`, e.message));
+      }
+    }
+  }
+
+  private async saveToPostgres(): Promise<void> {
+    if (!this.pool || !this.pgReady) return;
+    try {
+      await this.syncAllToPostgres();
+    } catch (err: any) {
+      console.error('[StorageEngine] PostgreSQL save error:', err.message);
+    }
+  }
+
+  private loadLocal(): DatabaseSchema {
     try {
       if (!fs.existsSync(DATA_DIR)) {
         fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -214,6 +310,9 @@ class StorageEngine {
     }
     this.saveTimeout = setTimeout(() => {
       this.saveSync(this.db);
+      if (this.pgReady) {
+        this.saveToPostgres().catch(() => {});
+      }
       this.saveTimeout = null;
     }, 200);
   }
@@ -224,6 +323,9 @@ class StorageEngine {
       this.saveTimeout = null;
     }
     this.saveSync(this.db);
+    if (this.pgReady) {
+      this.saveToPostgres().catch(() => {});
+    }
   }
 
   // --- Users ---
